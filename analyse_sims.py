@@ -10,47 +10,82 @@ import hera_cal as hc
 from pyuvdata import UVCal, UVData
 
 import utils
-import time, copy
+import time, copy, sys, yaml
+
+def default_cfg():
+    """
+    Set parameter defaults.
+    """
+    # Redcal parameters
+    cfg_redcal = dict( firstcal_ext='.first.calfits', 
+                       omnical_ext='.omni.calfits', 
+                       omnivis_ext='.omni_vis.uvh5', 
+                       meta_ext='.redcal_meta.hdf5', 
+                       iter0_prefix='', 
+                       outdir=None, 
+                       ant_metrics_file=None, 
+                       clobber=True, 
+                       nInt_to_load=None, 
+                       pol_mode='1pol', 
+                       bl_error_tol=1.0,
+                       ex_ants=[], 
+                       ant_z_thresh=4., 
+                       max_rerun=10, 
+                       solar_horizon=0.0, 
+                       flag_nchan_low=0, 
+                       flag_nchan_high=0, 
+                       fc_conv_crit=1e-7, 
+                       fc_maxiter=1000, 
+                       oc_conv_crit=1e-12, 
+                       oc_maxiter=3500, 
+                       check_every=10, 
+                       check_after=50, 
+                       gain=0.4, 
+                       add_to_history='', 
+                       verbose=True, 
+                       min_bl_cut=10.,
+                       max_bl_cut=40. )
+    
+    # Combine into single dict
+    cfg = {
+            'redcal':       cfg_redcal,
+            'coherent_avg': True
+          }
+    return cfg
 
 
 if __name__ == '__main__':
     # Analyse simulations
     
-    input_data = "calibration/test_sim.uvh5"
-    coherent_avg = True
+    # Get config file name
+    if len(sys.argv) > 1:
+        config_file = str(sys.argv[1])
+    else:
+        print("Usage: analyse_sims.py config_file")
+        sys.exit(1)
+    
+    # Load config file
+    cfg = default_cfg()
+    with open(config_file) as f:
+        cfg_in = yaml.load(f, Loader=yaml.FullLoader)
+    
+    # Overwrite defaults based on parameters in config file
+    for key in cfg_in.keys():
+        if key == 'redcal':
+            for rckey in cfg['redcal'].keys():
+                cfg['redcal'][rckey] = cfg_in['redcal'][rckey]
+        else:
+            cfg[key] = cfg_in[key]
+    
+    # Get input data filename
+    input_data = cfg['input_data']
     #red_grps, vecs, bl_lens, = uvd.get_redundancies()
     
     # (1) Perform redundant calibration
-    cal = hc.redcal.redcal_run(input_data, 
-                               filetype='uvh5', 
-                               firstcal_ext='.first.calfits', 
-                               omnical_ext='.omni.calfits', 
-                               omnivis_ext='.omni_vis.uvh5', 
-                               meta_ext='.redcal_meta.hdf5', 
-                               iter0_prefix='', 
-                               outdir=None, 
-                               ant_metrics_file=None, 
-                               clobber=True, 
-                               nInt_to_load=None, 
-                               pol_mode='1pol', 
-                               bl_error_tol=1.0,
-                               ex_ants=[], 
-                               ant_z_thresh=4., 
-                               max_rerun=10, 
-                               solar_horizon=0.0, 
-                               flag_nchan_low=0, 
-                               flag_nchan_high=0, 
-                               fc_conv_crit=1e-7, 
-                               fc_maxiter=1000, 
-                               oc_conv_crit=1e-12, 
-                               oc_maxiter=3500, 
-                               check_every=10, 
-                               check_after=50, 
-                               gain=0.4, 
-                               add_to_history='', 
-                               verbose=True, 
-                               min_bl_cut=10.,
-                               max_bl_cut=40.)
+    cal = hc.redcal.redcal_run(input_data, **cfg['redcal'])
+    
+    # FIXME
+    sys.exit(1)
     
     # (2) Fix redundant cal. degeneracies
     # (this fixes the degens to the same values as the true/input gains)
