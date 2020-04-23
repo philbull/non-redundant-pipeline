@@ -16,6 +16,10 @@ def default_cfg():
     """
     Set parameter defaults.
     """
+    
+    # General analysis parameters
+    cfg_analysis = dict( coherent_avg=True )
+    
     # Redcal parameters
     cfg_redcal = dict( firstcal_ext='.first.calfits', 
                        omnical_ext='.omni.calfits', 
@@ -49,7 +53,7 @@ def default_cfg():
     # Combine into single dict
     cfg = {
             'redcal':       cfg_redcal,
-            'coherent_avg': True
+            'analysis':     cfg_analysis,
           }
     return cfg
 
@@ -65,20 +69,10 @@ if __name__ == '__main__':
         sys.exit(1)
     
     # Load config file
-    cfg = default_cfg()
-    with open(config_file) as f:
-        cfg_in = yaml.load(f, Loader=yaml.FullLoader)
-    
-    # Overwrite defaults based on parameters in config file
-    for key in cfg_in.keys():
-        if key == 'redcal':
-            for rckey in cfg['redcal'].keys():
-                cfg['redcal'][rckey] = cfg_in['redcal'][rckey]
-        else:
-            cfg[key] = cfg_in[key]
-    
+    cfg = utils.load_config(config_file, default_cfg())
+            
     # Get input data filename
-    input_data = cfg['input_data']
+    input_data = cfg['analysis']['input_data']
     #red_grps, vecs, bl_lens, = uvd.get_redundancies()
     
     # (1) Perform redundant calibration

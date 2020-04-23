@@ -4,6 +4,8 @@ import pyuvdata.utils as uvutils
 import hera_pspec as hp
 import hera_cal as hc
 
+import copy, yaml
+
 
 def add_noise_from_autos(uvd_in, nsamp=1, seed=None, inplace=False):
     """
@@ -337,3 +339,37 @@ def save_simulated_gains(uvd, gains, outfile, overwrite=False):
                         return_uvc=False,
                         overwrite=overwrite)
 
+
+def load_config(config_file, cfg_default):
+    """
+    Load a configuration file as a dict. Uses default values for parameters not 
+    specified in the file.
+    
+    Parameters
+    ----------
+    config_file : str
+        Filename of configuration file (YAML format).
+        
+    cfg_default : dict
+        Dictionary containing default values.
+    
+    Returns
+    -------
+    cfg : dict
+        Dictionary containing configuration.
+    """
+    # Open and load file
+    with open(config_file) as f:
+        cfg_in = yaml.load(f, Loader=yaml.FullLoader)
+    
+    # Overwrite defaults based on parameters in config file
+    cfg = copy.deepcopy(cfg_default)
+    for grp in cfg_in.keys():
+        if isinstance(cfg[grp], dict):
+            # Nested dict
+            for key in cfg_in[grp].keys():
+                cfg[grp][key] = cfg_in[grp][key]
+        else:
+            cfg[grp] = cfg_in[grp]
+    return cfg
+    
