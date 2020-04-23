@@ -111,7 +111,7 @@ if __name__ == '__main__':
                            spw_ranges=[(0, 120)],
                            rephase_to_dset=0,blpairs=blpairs,
                            taper='blackman-harris', verbose=True,
-                           overwrite=True)
+                        overwrite=True)
 
     if coherent_avg:
         pspecd_avg = hp.pspecdata.pspec_run([uvd_avg,uvd_avg],
