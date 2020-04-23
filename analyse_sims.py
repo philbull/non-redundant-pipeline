@@ -104,6 +104,24 @@ if __name__ == '__main__':
                                              inplace=False)
     
     # (5) Estimate power spectra
+
+    pspecd = hp.pspecdata.pspec_run([uvd_cal,uvd_cal],
+                           'pspeccon.hdf5',pol_pairs=[('xx', 'xx')],
+                           input_data_weight='identity',norm='I',
+                           spw_ranges=[(0, 120)],
+                           rephase_to_dset=0,blpairs=blpairs,
+                           taper='blackman-harris', verbose=True,
+                           overwrite=True)
+
+    if coherent_avg:
+        pspecd_avg = hp.pspecdata.pspec_run([uvd_avg,uvd_avg],
+                           'pspeccon_avg.hdf5',pol_pairs=[('xx', 'xx')],
+                           input_data_weight='identity',norm='I',
+                           spw_ranges=[(0, 120)],
+                           rephase_to_dset=0,blpairs=blpairs,
+                           taper='blackman-harris', verbose=True,
+                           overwrite=True)
+
     # FIXME
     
     # Timing
