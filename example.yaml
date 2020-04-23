@@ -35,3 +35,5 @@ redcal:
     min_bl_cut:         10.
     max_bl_cut:         40.
 
+pspec:
+    spw_ranges:         (0, 100)
