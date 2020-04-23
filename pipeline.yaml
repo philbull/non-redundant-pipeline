@@ -9,7 +9,7 @@ redcal:
     outdir:             
     clobber:            True 
     pol_mode:           1pol 
-    gain:               0.4  
+    gain:               0.4
     min_bl_cut:         10.
     max_bl_cut:         40.
 

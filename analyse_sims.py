@@ -16,7 +16,6 @@ def default_cfg():
     """
     Set parameter defaults.
     """
-    
     # General analysis parameters
     cfg_analysis = dict( coherent_avg=True )
     

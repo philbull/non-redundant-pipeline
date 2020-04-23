@@ -3,6 +3,7 @@ import numpy as np
 import pyuvdata.utils as uvutils
 import hera_pspec as hp
 import hera_cal as hc
+from hera_sim import io
 
 import copy, yaml
 
@@ -338,6 +339,98 @@ def save_simulated_gains(uvd, gains, outfile, overwrite=False):
                         write_file=True,
                         return_uvc=False,
                         overwrite=overwrite)
+
+
+def empty_uvdata(ants=10, ntimes=20, bandwidth=0.2e8, integration_time=40., 
+                 start_time=2458902.33333, start_freq=1.e8, **kwargs):
+    """
+    Generate empty UVData object with the right shape.
+    
+    Parameters
+    ----------
+    ants : int, optional
+        Number of antennas. Default: 10
+    
+    ntimes : int, optional
+        Number of time samples. Default: 20.
+    
+    bandwidth : float
+        Total bandwidth, in Hz. Default: 0.2e8
+    
+    integration_time : float, optional
+        Integration time per time sample. Default: 40. 
+    
+    start_time : float, optional
+        Start date of observations, as Julian date. Default: 2458902.33333 
+        (20:00 UTC on 2020-02-22)
+    
+    start_freq : float, optional
+        Initial frequency channel, in Hz. Default: 1.e8.
+    
+    **kwargs : args
+        Other arguments to be passed to `hera_sim.io.empty_uvdata`.
+    
+    Returns
+    -------
+    uvd : UVData
+        Returns an empty UVData 
+    """
+    uvd = io.empty_uvdata(
+        nfreq=nfreqs,
+        start_freq=start_freq,
+        channel_width=bandwidth / nfreqs,
+        start_time=start_time,
+        integration_time=integration_time,
+        ntimes=ntimes,
+        ants=ants,
+        **kwargs
+    )
+    
+    # Add missing parameters
+    uvd._x_orientation.value = 'east'
+    return uvd
+
+
+def load_ptsrc_catalog(cat_name, freqs, freq0=1.e8, usecols=(10,12,77,-5)):
+    """
+    Load point sources from the GLEAM catalog.
+    
+    Parameters
+    ----------
+    cat_name : str
+        Filename of piunt source catalogue.
+    
+    freqs : array_like
+        Array of frequencies to evaluate point source SEDs at (in Hz).
+    
+    freq0 : float, optional
+        Reference frequency for power law spectra, in Hz. Default: 1e8.
+    
+    usecols : tuple of int, optional
+        Which columns to extract the catalogue data from. Columns required (in 
+        order) are (RA, Dec, flux, spectral_index). Assumes angles in degrees, 
+        fluxes in Jy.
+        Default (for GLEAM catalogue): (10,12,77,-5).
+    
+    Returns
+    -------
+    ra_dec : array_like
+        RA and Dec of sources, in radians.
+    
+    flux : array_like
+        Fluxes of point sources as a function of frequency, in Jy.
+    """
+    aa = np.genfromtxt(cat_name, usecols=usecols)
+    bb = aa[ (aa[:,2] >= 1.) & np.isfinite(aa[:,3])] # Fluxes more than 1 Jy
+    
+    # Get angular positions
+    ra_dec = np.deg2rad(bb[:,0:2])
+    ra_dec.shape
+    
+    # Calculate SEDs
+    flux = (freqs[:,np.newaxis]/freq0)**bb[:,3].T * bb[:,2].T
+    
+    return ra_dec, flux
 
 
 def load_config(config_file, cfg_default):
