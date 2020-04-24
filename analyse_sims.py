@@ -145,7 +145,7 @@ if __name__ == '__main__':
 
 
     # (5) Estimate power spectra
-    input_ext = utils.get_file_ext(input_data)
+    input_ext = utils.remove_file_ext(input_data)
     psc_out_inco = input_ext+cfg['pspec']['incoherent_ext']
     psc_out_co = input_ext+cfg['pspec']['coherent_ext']
   

@@ -465,14 +465,14 @@ def load_config(config_file, cfg_default):
         else:
             cfg[grp] = cfg_in[grp]
     return cfg
-    
-def get_file_ext(dfile):
-    """get second-to-last .*. slot in filename"""
+
+def remove_file_ext(dfile):
+    """remove the .ext in file name"""
     if isinstance(dfile, (str, np.str)):
-        fext = dfile.split('.')[-2]
-        return fext
+        fext = dfile.split('.')[-1]
+        return (dfile[:-(len(fext)+1)])
     else:
-        return [get_file_ext(df) for df in dfile]
+        return dfile
 
 
 def load_gain(gain_file):
