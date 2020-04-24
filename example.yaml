@@ -10,6 +10,7 @@ simulation:
 
 analysis:
     input_data:         test_sim.uvh5
+    input_truegain:     test_truegain.pkl
     coherent_avg:       True
 
 # N.B. Make sure there is a dot when specifying numbers with scientific notation
@@ -45,4 +46,19 @@ redcal:
     max_bl_cut:         40.
 
 pspec:
-    spw_ranges:         (0, 100)
+    incoherent_ext:     .inco_psc.hdf5
+    coherent_ext:       .co_psc.hdf5
+
+pspec_run:
+    input_data_weight:  'identity'
+    norm:               'I'
+    spw_ranges:         (0,120)
+    rephase_to_dset:    0
+    taper:              'blackman-harris'
+    verbose:            True
+    overwrite:          True
+    bl_len_range:       (0., 20.)
+    bl_deg_range:       (0.0, 180.0)
+    exclude_auto_bls:   False
+    exclude_cross_bls:  False
+    exclude_permutations: True
