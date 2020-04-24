@@ -5,7 +5,7 @@ import hera_pspec as hp
 import hera_cal as hc
 from hera_sim import io
 
-import copy, yaml
+import copy, yaml, pickle
 
 
 def add_noise_from_autos(uvd_in, nsamp=1, seed=None, inplace=False):
@@ -466,3 +466,18 @@ def load_config(config_file, cfg_default):
             cfg[grp] = cfg_in[grp]
     return cfg
     
+def get_file_ext(dfile):
+    """get second-to-last .*. slot in filename"""
+    if isinstance(dfile, (str, np.str)):
+        fext = dfile.split('.')[-2]
+        return fext
+    else:
+        return [get_file_ext(df) for df in dfile]
+
+
+def load_gain(gain_file):
+    pkl_file = open(gain_file, 'rb')
+    true_gains = pickle.load(pkl_file)
+    pkl_file.close()
+
+    return true_gains
