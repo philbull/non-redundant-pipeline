@@ -458,12 +458,16 @@ def load_config(config_file, cfg_default):
     # Overwrite defaults based on parameters in config file
     cfg = copy.deepcopy(cfg_default)
     for grp in cfg_in.keys():
-        if isinstance(cfg[grp], dict):
+        
+        # Check if key contains nested dict, or is just a key-value pair
+        # (or just add this key if it doesn't exist in the default dict)
+        if grp in cfg.keys() and isinstance(cfg[grp], dict):
             # Nested dict
             for key in cfg_in[grp].keys():
                 cfg[grp][key] = cfg_in[grp][key]
         else:
             cfg[grp] = cfg_in[grp]
+            
     return cfg
 
 def remove_file_ext(dfile):
