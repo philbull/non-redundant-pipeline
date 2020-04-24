@@ -10,48 +10,32 @@ import hera_cal as hc
 import pyuvdata
 
 from hera_sim.visibilities import VisCPU, conversions
-from hera_sim import io
 from hera_sim.beams import PolyBeam
 
 import utils
 import time, copy, sys
 
 
-def empty_uvdata(ants=10, ntimes=20, bandwidth=0.2e8, integration_time=40., 
-                 **kwargs):
+def default_cfg():
     """
-    Generate empty UVData object with the right shape.
+    Set parameter defaults.
     """
-    uvd = io.empty_uvdata(
-        nfreq=nfreqs,
-        start_freq=1.e8,
-        channel_width=bandwidth / nfreqs,
-        start_time=2458902.33333,
-        integration_time=integration_time,
-        ntimes=ntimes,
-        ants=ants,
-        **kwargs
-    )
+    # Simulation parameters
+    cfg_sim = dict( xx,
+                    beam_coeffs=[
+                              2.35088101e-01, -4.20162599e-01,  2.99189140e-01, 
+                             -1.54189057e-01,  3.38651457e-02,  3.46936067e-02, 
+                             -4.98838130e-02,  3.23054464e-02, -7.56006552e-03, 
+                             -7.24620596e-03,  7.99563166e-03, -2.78125602e-03,
+                             -8.19945835e-04,  1.13791191e-03, -1.24301372e-04, 
+                             -3.74808752e-04,  1.93997376e-04, -1.72012040e-05 
+                               ],
+                    a=1.,
+                        )
     
-    # Add missing parameters
-    uvd._x_orientation.value = 'east'
-    return uvd
-
-
-def load_ptsrc_catalog(cat_name='gleamegc.dat', freq0=1.e8):
-    """
-    Load point sources from the GLEAM catalog.
-    """
-    aa = np.genfromtxt(cat_name, usecols=(10,12,77,-5))
-    bb = aa[ (aa[:,2] >= 1.) & np.isfinite(aa[:,3])] # Fluxes more than 1 Jy
-    ra_dec = np.deg2rad(bb[:,0:2])
-    ra_dec.shape
-
-    freqs = np.unique(uvdata.freq_array)
-
-    flux = (freqs[:,np.newaxis]/freq0)**bb[:,3].T*bb[:,2].T
-    return ra_dec, flux
-
+    # Combine into single dict
+    cfg = { 'simulation': cfg_sim }
+    return cfg
 
 
 
@@ -63,6 +47,10 @@ if __name__ == '__main__':
     myid = comm.get_Rank()
     
     
+    #gleamegc.dat'
+    
+    _cfg = ['']
+    
     ants = utils.build_array()
     Nant = len(ants)
     ant_index = list(ants.keys())
@@ -71,15 +59,11 @@ if __name__ == '__main__':
 
     # Create frequency array
     freq0 = 1e8
-    ra_dec, flux = load_ptsrc_catalog('gleamegc.dat', freq0=freq0)
+    ra_dec, flux = load_ptsrc_catalog(cfg['cat_name'], freq0=freq0, 
+                                      freqs=np.unique(uvd.freq_array))
 
     # Best fit coeffcients for Chebyshev polynomials
-    coeff = np.array([ 2.35088101e-01, -4.20162599e-01,  2.99189140e-01, 
-                      -1.54189057e-01,  3.38651457e-02,  3.46936067e-02, 
-                      -4.98838130e-02,  3.23054464e-02, -7.56006552e-03, 
-                      -7.24620596e-03,  7.99563166e-03, -2.78125602e-03,
-                      -8.19945835e-04,  1.13791191e-03, -1.24301372e-04, 
-                      -3.74808752e-04,  1.93997376e-04, -1.72012040e-05 ])
+    coeff = np.array()
     # From power-law fitting of the width of Fagnoni beam at 100 and 200 MHz
     spindex = -0.6975
     
