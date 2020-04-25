@@ -58,7 +58,8 @@ pspec_run:
     verbose:            True
     overwrite:          True
     bl_len_range:       (0., 20.)
-    bl_deg_range:       (0.0, 180.0)
+    bl_deg_range:       (0.0, 5.0)
+    interleave_times:   True
     exclude_auto_bls:   False
     exclude_cross_bls:  False
     exclude_permutations: True
