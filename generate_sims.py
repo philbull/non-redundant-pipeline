@@ -10,18 +10,18 @@ import hera_cal as hc
 import pyuvdata
 
 from hera_sim.visibilities import VisCPU, conversions
-from hera_sim.beams import PolyBeam
+from hera_sim.beams import PolyBeam,PerturbedPolyBeam
 
 import utils
 import time, copy, sys
 
-
+import matplotlib.pyplot as plt
 def default_cfg():
     """
     Set parameter defaults.
     """
     # Simulation parameters
-    cfg_sim = dict( xx,
+    cfg_sim = dict( ref_freq = 1.e+8,
                     beam_coeffs=[
                               2.35088101e-01, -4.20162599e-01,  2.99189140e-01, 
                              -1.54189057e-01,  3.38651457e-02,  3.46936067e-02, 
@@ -30,49 +30,86 @@ def default_cfg():
                              -8.19945835e-04,  1.13791191e-03, -1.24301372e-04, 
                              -3.74808752e-04,  1.93997376e-04, -1.72012040e-05 
                                ],
-                    a=1.,
-                        )
-    
+                    spindex=-0.6975,
+                    seed=11,
+                    sigma=0.05,
+                    mainlobe_scale=1.0,
+                    mainlobe_width=0.3, 
+                    nmodes=8,)
+
+    cfg_sim_spec = dict(nfreq=20,
+                        start_freq=1.0e+8,
+                        bandwidth=0.2e+8,
+                        start_time=2458902.33333,
+                        integration_time=40.,
+                        ntimes=40,)
+
+    cfg_sim_gain = dict(nmodes=8,
+                         seed=10,)
+
     # Combine into single dict
-    cfg = { 'simulation': cfg_sim }
+    cfg = { 'simulation': cfg_sim,
+            'sim_spec':   cfg_sim_spec,
+            'sim_gain':   cfg_sim_gain,
+           }
     return cfg
-
-
 
 if __name__ == '__main__':
     # Run simulations
     
+
+    # Get config file name
+    if len(sys.argv) > 1:
+        config_file = str(sys.argv[1])
+    else:
+        print("Usage: analyse_sims.py config_file")
+        sys.exit(1)
+        
+    # Load config file
+    cfg = utils.load_config(config_file, default_cfg())
+   
     # Begin MPI
     comm = MPI.COMM_WORLD
-    myid = comm.get_Rank()
-    
-    
-    #gleamegc.dat'
-    
-    _cfg = ['']
+    myid = comm.Get_rank()
     
     ants = utils.build_array()
     Nant = len(ants)
     ant_index = list(ants.keys())
-    
-    uvd = empty_uvdata(ntimes=20, nfreqs=40)
+ 
+    uvd = utils.empty_uvdata(ants=ants,**cfg['sim_spec'])
 
     # Create frequency array
-    freq0 = 1e8
-    ra_dec, flux = load_ptsrc_catalog(cfg['cat_name'], freq0=freq0, 
-                                      freqs=np.unique(uvd.freq_array))
+    freq0 = 1.e8
+    freqs = np.unique(uvd.freq_array)
+    ra_dec, flux = utils.load_ptsrc_catalog(cfg['cat_name'], freq0=freq0, 
+                                            freqs=freqs)
 
-    # Best fit coeffcients for Chebyshev polynomials
-    coeff = np.array()
-    # From power-law fitting of the width of Fagnoni beam at 100 and 200 MHz
-    spindex = -0.6975
-    
-    # Build list of beams by 
-    beam_list = [ PolyBeam(beam_coeffs=coeff, 
-                           spectral_index=spindex,
-                           ref_freq=freq0) 
+    # Build list of beams using Best fit coeffcients for Chebyshev polynomials
+    ref_freq = cfg['simulation']['ref_freq']
+    beam_coeffs = cfg['simulation']['beam_coeffs']
+    spectral_index = cfg['simulation']['spectral_index']
+    perturb = cfg['simulation']['perturb']
+    seed = cfg['simulation']['seed']
+    sigma = cfg['simulation']['sigma']
+    mainlobe_scale = cfg['simulation']['mainlobe_scale']
+    mainlobe_width = cfg['simulation']['mainlobe_width']
+    nmodes = cfg['simulation']['nmodes']
+
+    if perturb:
+        np.random.seed(seed)
+        pcoeffs = np.random.randn(nmodes)
+        beam_list = [PerturbedPolyBeam(pcoeffs, perturb_scale=sigma,
+                        mainlobe_scale=mainlobe_scale,
+                        mainlobe_width=mainlobe_width,beam_coeffs=beam_coeffs,
+                       spectral_index=spectral_index, ref_freq=ref_freq) 
+                     for i in range(Nant)]
+
+    else:
+        beam_list = [ PolyBeam(beam_coeffs=beam_coeffs, 
+                           spectral_index=spectral_index,
+                           ref_freq=ref_freq) 
                   for i in range(Nant)]
-    
+
     # Create VisCPU visibility simulator object (MPI-enabled)
     simulator = VisCPU(
         uvdata=uvd,
@@ -92,28 +129,30 @@ if __name__ == '__main__':
     tstart = time.time()
     simulator.simulate()
     print("Run took %2.1f sec" % (time.time() - tstart))
-    
+
     if myid != 0:
         # Wait for root worker to finish IO before quitting
         comm.Barrier()
         comm.Finalize() # FIXME
         sys.exit(0)
-    
+
     # Write simulated data to file
     uvd = simulator.uvdata
     red_grps, vecs, bl_lens, = uvd.get_redundancies()
-    uvd_n.write_uvh5("calibration/test_sim.uvh5", clobber=True)
+    uvd.write_uvh5("calibration/test_sim.uvh5", clobber=True)
     
     # Generate gain model
-    gg = utils.generate_gains(nants, nfreqs, nmodes=8, seed=None)
-    utils.save_simulated_gains(uvd, gains, outfile='test.calfits', overwrite=False)
+    nfreqs = cfg['sim_spec']['nfreq']
+    gg = utils.generate_gains(Nant, nfreqs, **cfg['sim_gain'])
+    utils.save_simulated_gains(uvd, gg, outfile='test.calfits', overwrite=False)
     
     # Loop over all baselines and apply gain factor
+    uvd_g = copy.deepcopy(uvd)
     for bl in np.unique(uvd_g.baseline_array):
         
         # Calculate product of gain factors (time-indep. for now)
         ant1, ant2 = uvd_g.baseline_to_antnums(bl)
-        gigj = true_gains[ant1] * true_gains[ant2].conj()
+        gigj = gg[ant1] * gg[ant2].conj()
         
         # Get index in data array
         idxs = uvd_g.antpair2ind((ant1, ant2))
@@ -123,7 +162,7 @@ if __name__ == '__main__':
     # Add noise
     uvd_n = utils.add_noise_from_autos(uvd_g, nsamp=1., seed=10, inplace=False)    
     uvd_n.write_uvh5("calibration/test_sim_n.uvh5", clobber=True)
-    
+
     # Sync with other workers and finalise
     comm.Barrier()
     comm.Finalize()
