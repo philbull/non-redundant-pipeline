@@ -7,6 +7,14 @@ simulation:
                          -7.24620596e-03,  7.99563166e-03, -2.78125602e-03,
                          -8.19945835e-04,  1.13791191e-03, -1.24301372e-04, 
                          -3.74808752e-04,  1.93997376e-04, -1.72012040e-05 ]
+    empty_uvdata:
+                        nfreq:           20
+                        start_freq:       1.0e8
+                        channel_width:    1.0e6
+                        start_time:       2458902.33333
+                        integration_time: 40.
+                        ntimes:           40
+
 
 analysis:
     input_data:         test_sim.uvh5
