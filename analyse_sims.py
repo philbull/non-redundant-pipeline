@@ -51,10 +51,6 @@ def default_cfg():
                        min_bl_cut=10.,
                        max_bl_cut=40. )
 
-    #Pspec parameters
-    cfg_pspec = dict( incoherent_ext='.inco.hdf5',
-                      coherent_ext='.co.hdf5' )
-
     # Pspec run parameters
     cfg_pspec_run = dict( input_data_weight='identity',
                           norm='I',
@@ -63,9 +59,10 @@ def default_cfg():
                           taper='blackman-harris',
                           verbose=True,
                           overwrite=True,
-                          bl_len_range=(0, 2.0e10),
-                          bl_deg_range=(0., 180.),
-                          exclude_auto_bls=False,
+                          bl_len_range=(0, 20.),
+                          bl_deg_range=(0., 5.),
+                          interleave_times=False,
+                          exclude_auto_bls=True,
                           exclude_cross_bls=False,
                           exclude_permutations=True )
     
@@ -73,7 +70,6 @@ def default_cfg():
     cfg = {
             'redcal':       cfg_redcal,
             'analysis':     cfg_analysis,
-            'pspec':        cfg_pspec,
             'pspec_run':    cfg_pspec_run,
           }
     return cfg
@@ -95,13 +91,16 @@ if __name__ == '__main__':
     # Get input data filename
     input_data = cfg['analysis']['input_data']
     input_truegain = cfg['analysis']['input_truegain']
+    coherent_avg = cfg['analysis']['coherent_avg']
     #red_grps, vecs, bl_lens, = uvd.get_redundancies()
 
 
     # (1) Perform redundant calibration
+    tstart = time.time()
     cal = hc.redcal.redcal_run(input_data, **cfg['redcal'])
+    print("Red calibration run took %2.1f sec" % (time.time() - tstart))    
     
-    
+
     # (2) Load UVData
     uvd_in = UVData()
     uvd_in.read_uvh5(input_data)
@@ -116,23 +115,24 @@ if __name__ == '__main__':
     new_gains = utils.fix_redcal_degeneracies(input_data, 
                                               cal['g_omnical'], 
                                               true_gains)
-    hc.redcal.write_cal('new_gains111.calfits',new_gains,
+    hc.redcal.write_cal('new_gains.calfits',new_gains,
                         uvd_in.freq_array.flatten(),
                         np.unique(uvd_in.time_array))
 
     # (5) Load calibration solutions and apply to data
     uvc = UVCal()
-    uvc.read_calfits("new_gains111.calfits")
+    uvc.read_calfits("new_gains.calfits")
     uvd_cal = uvutils.uvcalibrate(uvd_in, uvc, inplace=False, prop_flags=True, 
                                   flag_missing=True)
-    
-    # (4) Perform coherent average (if requested)
-    #if coherent_avg:
-    #    uvd_avg = utils.coherent_average_vis(uvd_cal, wgt_by_nsample=True, 
-    #                                         inplace=False)
 
+    # (6) Perform coherent average (if requested)
+    if coherent_avg:
+        print(coherent_avg)
+        uvd_avg = utils.coherent_average_vis(uvd_cal, wgt_by_nsample=True, 
+                                             inplace=False)
+    print(uvd_avg.get_data(0,1)[0,0])
 
-    # chenges few paramters structures for Pspec run
+    # (7) chenges few paramters structures for Pspec run
     spw = []
     spw.append(tuple(int(s) for s in 
                      cfg['pspec_run']['spw_ranges'].strip("()").split(",")))
@@ -144,21 +144,19 @@ if __name__ == '__main__':
     cfg['pspec_run']['bl_deg_range'] = tuple(float(s) for s in cfg['pspec_run']['bl_deg_range'].strip("()").split(","))
 
 
-    # (5) Estimate power spectra
+    # (8) Estimate power spectra
     input_ext = utils.remove_file_ext(input_data)
     psc_out_inco = input_ext+cfg['pspec']['incoherent_ext']
     psc_out_co = input_ext+cfg['pspec']['coherent_ext']
   
-    pspecd = hp.pspecdata.pspec_run([uvd_cal,uvd_cal],
+
+    tstart = time.time()
+
+    pspecd = hp.pspecdata.pspec_run([uvd_cal,],
                                     psc_out_inco,**cfg['pspec_run'])
 
-    ##if coherent_avg:
-    ##    pspecd_avg = hp.pspecdata.pspec_run([uvd_avg,uvd_avg],
-    ##                       psc_out_co,**cfg['pspec_run'])
+    if coherent_avg:
+        pspecd_avg = hp.pspecdata.pspec_run([uvd_avg,],
+                           psc_out_co,**cfg['pspec_run'])
 
-    # FIXME
-    
-    # Timing
-    tstart = time.time()
-    print("Run took %2.1f sec" % (time.time() - tstart))
-    
+    print("Pspec run took %2.1f sec" % (time.time() - tstart))
