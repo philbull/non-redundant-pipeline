@@ -133,7 +133,7 @@ if __name__ == '__main__':
     if myid != 0:
         # Wait for root worker to finish IO before quitting
         comm.Barrier()
-        comm.Finalize() # FIXME
+        #comm.Finalize() # FIXME
         sys.exit(0)
 
     # Write simulated data to file
@@ -163,7 +163,10 @@ if __name__ == '__main__':
     uvd_n = utils.add_noise_from_autos(uvd_g, nsamp=1., seed=10, inplace=False)    
     uvd_n.write_uvh5("calibration/test_sim_n.uvh5", clobber=True)
 
+    visibility = uvd_n.get_data(1,3)
+    print(visibility[9,9])
+
+
     # Sync with other workers and finalise
     comm.Barrier()
-    comm.Finalize()
     sys.exit(0)
