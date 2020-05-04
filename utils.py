@@ -70,7 +70,7 @@ def add_noise_from_autos(uvd_in, nsamp=1, seed=None, inplace=False):
         uvd.data_array[bl_idxs,:,:,:] += n
     
     # Rescale nsamples_array by the assumed number of samples
-    uvd.nsamples_array *= nsamp
+    uvd.nsample_array *= nsamp
     
     return uvd
 
@@ -326,11 +326,11 @@ def save_simulated_gains(uvd, gains, outfile, overwrite=False):
     # Get unique time and frequency arrays
     times = np.unique(uvd.time_array)
     freqs = np.unique(uvd.freq_array)
+    ntimes= len(times)
     
     # Rename keys to use same format as redcal, and inflate in time direction
     gain_dict = {(ant, 'Jee'): np.outer(np.ones(ntimes), gains[ant]) 
                  for ant in gains.keys()}
-    
     # Write to calfits file
     hc.redcal.write_cal(outfile,
                         gain_dict,
@@ -341,16 +341,18 @@ def save_simulated_gains(uvd, gains, outfile, overwrite=False):
                         overwrite=overwrite)
 
 
-def empty_uvdata(ants=10, ntimes=20, bandwidth=0.2e8, integration_time=40., 
+def empty_uvdata(ants=None, nfreq=20, ntimes=20, bandwidth=0.2e8, 
+                 integration_time=40., 
                  start_time=2458902.33333, start_freq=1.e8, **kwargs):
     """
     Generate empty UVData object with the right shape.
     
     Parameters
     ----------
-    ants : int, optional
-        Number of antennas. Default: 10
-    
+    ants (dict): None
+        A dictionary mapping an integer to a three-tuple of ENU co-ordinates for
+        each antenna. These antennas can be down-selected via keywords.
+
     ntimes : int, optional
         Number of time samples. Default: 20.
     
@@ -376,9 +378,9 @@ def empty_uvdata(ants=10, ntimes=20, bandwidth=0.2e8, integration_time=40.,
         Returns an empty UVData 
     """
     uvd = io.empty_uvdata(
-        nfreq=nfreqs,
+        nfreq=nfreq,
         start_freq=start_freq,
-        channel_width=bandwidth / nfreqs,
+        channel_width=bandwidth / nfreq,
         start_time=start_time,
         integration_time=integration_time,
         ntimes=ntimes,
@@ -421,7 +423,7 @@ def load_ptsrc_catalog(cat_name, freqs, freq0=1.e8, usecols=(10,12,77,-5)):
         Fluxes of point sources as a function of frequency, in Jy.
     """
     aa = np.genfromtxt(cat_name, usecols=usecols)
-    bb = aa[ (aa[:,2] >= 1.) & np.isfinite(aa[:,3])] # Fluxes more than 1 Jy
+    bb = aa[ (aa[:,2] >= 15.) & np.isfinite(aa[:,3])] # Fluxes more than 1 Jy
     
     # Get angular positions
     ra_dec = np.deg2rad(bb[:,0:2])
