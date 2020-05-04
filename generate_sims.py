@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate simulations of a non-redundant array using hera_sim.
+Generate simulations of a slightly non-redundant array using hera_sim.
 """
 from mpi4py import MPI
 import numpy as np
@@ -15,100 +15,97 @@ from hera_sim.beams import PolyBeam,PerturbedPolyBeam
 import utils
 import time, copy, sys
 
-import matplotlib.pyplot as plt
+
 def default_cfg():
     """
     Set parameter defaults.
     """
-    # Simulation parameters
-    cfg_sim = dict( ref_freq = 1.e+8,
-                    beam_coeffs=[
-                              2.35088101e-01, -4.20162599e-01,  2.99189140e-01, 
-                             -1.54189057e-01,  3.38651457e-02,  3.46936067e-02, 
-                             -4.98838130e-02,  3.23054464e-02, -7.56006552e-03, 
-                             -7.24620596e-03,  7.99563166e-03, -2.78125602e-03,
-                             -8.19945835e-04,  1.13791191e-03, -1.24301372e-04, 
-                             -3.74808752e-04,  1.93997376e-04, -1.72012040e-05 
-                               ],
-                    spindex=-0.6975,
-                    seed=11,
-                    sigma=0.05,
-                    mainlobe_scale=1.0,
-                    mainlobe_width=0.3, 
-                    nmodes=8,)
-
-    cfg_sim_spec = dict(nfreq=20,
-                        start_freq=1.0e+8,
-                        bandwidth=0.2e+8,
-                        start_time=2458902.33333,
-                        integration_time=40.,
-                        ntimes=40,)
-
-    cfg_sim_gain = dict(nmodes=8,
-                         seed=10,)
-
+    # Simulation specification
+    cfg_spec = dict( nfreq=20,
+                     start_freq=1.0e+8,
+                     bandwidth=0.2e+8,
+                     start_time=2458902.33333,
+                     integration_time=40.,
+                     ntimes=40,
+                     cat_name="gleamegc.dat",
+                     apply_gains=True,
+                     apply_noise=True )
+                        
+    # Beam model parameters
+    cfg_beam = dict( ref_freq=1.e+8,
+                     spindex=-0.6975,
+                     seed=None,
+                     sigma=0.05,
+                     mainlobe_scale=1.0,
+                     mainlobe_width=0.3, 
+                     nmodes=8,
+                     beam_coeffs=[
+                               2.35088101e-01, -4.20162599e-01,  2.99189140e-01, 
+                              -1.54189057e-01,  3.38651457e-02,  3.46936067e-02, 
+                              -4.98838130e-02,  3.23054464e-02, -7.56006552e-03, 
+                              -7.24620596e-03,  7.99563166e-03, -2.78125602e-03,
+                              -8.19945835e-04,  1.13791191e-03, -1.24301372e-04, 
+                              -3.74808752e-04,  1.93997376e-04, -1.72012040e-05 
+                                ] )
+    
+    # Fluctuating gain model parameters
+    cfg_gain = dict(nmodes=8, seed=None)
+    
+    # Noise parameters
+    cfg_noise = dict(nsamp=1.0, seed=None)
+    
     # Combine into single dict
-    cfg = { 'simulation': cfg_sim,
-            'sim_spec':   cfg_sim_spec,
-            'sim_gain':   cfg_sim_gain,
+    cfg = { 'sim_beam':   cfg_beam,
+            'sim_spec':   cfg_spec,
+            'sim_noise':  cfg_noise,
+            'sim_gain':   cfg_gain,
            }
     return cfg
 
-if __name__ == '__main__':
-    # Run simulations
-    
 
-    # Get config file name
+if __name__ == '__main__':
+    # Run simulations (MPI-enabled)    
+
+    # Get config file name from args
     if len(sys.argv) > 1:
         config_file = str(sys.argv[1])
     else:
         print("Usage: analyse_sims.py config_file")
         sys.exit(1)
-        
-    # Load config file
-    cfg = utils.load_config(config_file, default_cfg())
-   
+    
     # Begin MPI
     comm = MPI.COMM_WORLD
     myid = comm.Get_rank()
     
+    # Load config file
+    cfg = utils.load_config(config_file, default_cfg())
+    cfg_spec = cfg['sim_spec']
+    cfg_out = cfg['sim_output']
+    cfg_beam = cfg['sim_beam']
+    cfg_n = cfg['sim_noise']
+    
+    
+    # Construct array layout to simulate
     ants = utils.build_array()
     Nant = len(ants)
     ant_index = list(ants.keys())
- 
-    uvd = utils.empty_uvdata(ants=ants,**cfg['sim_spec'])
+    
+    # Build empty UVData object with correct dimensions
+    uvd = utils.empty_uvdata(ants=ants, **cfg_spec)
 
     # Create frequency array
-    freq0 = 1.e8
+    freq0 = 100e6
     freqs = np.unique(uvd.freq_array)
-    ra_dec, flux = utils.load_ptsrc_catalog(cfg['cat_name'], freq0=freq0, 
-                                            freqs=freqs)
+    ra_dec, flux = utils.load_ptsrc_catalog(cfg_spec['cat_name'], 
+                                            freq0=freq0, freqs=freqs)
 
     # Build list of beams using Best fit coeffcients for Chebyshev polynomials
-    ref_freq = cfg['simulation']['ref_freq']
-    beam_coeffs = cfg['simulation']['beam_coeffs']
-    spectral_index = cfg['simulation']['spectral_index']
-    perturb = cfg['simulation']['perturb']
-    seed = cfg['simulation']['seed']
-    sigma = cfg['simulation']['sigma']
-    mainlobe_scale = cfg['simulation']['mainlobe_scale']
-    mainlobe_width = cfg['simulation']['mainlobe_width']
-    nmodes = cfg['simulation']['nmodes']
-
-    if perturb:
-        np.random.seed(seed)
-        pcoeffs = np.random.randn(nmodes)
-        beam_list = [PerturbedPolyBeam(pcoeffs, perturb_scale=sigma,
-                        mainlobe_scale=mainlobe_scale,
-                        mainlobe_width=mainlobe_width,beam_coeffs=beam_coeffs,
-                       spectral_index=spectral_index, ref_freq=ref_freq) 
-                     for i in range(Nant)]
-
+    if cfg_beam['perturb']:
+        np.random.seed(cfg_beam['seed'])
+        beam_list = [PerturbedPolyBeam(np.random.randn(cfg_beam['nmodes']), 
+                                        **cfg_beam) for i in range(Nant)]
     else:
-        beam_list = [ PolyBeam(beam_coeffs=beam_coeffs, 
-                           spectral_index=spectral_index,
-                           ref_freq=ref_freq) 
-                  for i in range(Nant)]
+        beam_list = [PolyBeam(**cfg_beam) for i in range(Nant)]
 
     # Create VisCPU visibility simulator object (MPI-enabled)
     simulator = VisCPU(
@@ -120,53 +117,62 @@ if __name__ == '__main__':
         point_source_flux=flux,
         real_dtype=np.float64,
         complex_dtype=np.complex128,
-        use_pixel_beams=False,
-        bm_pix = 20,
+        use_pixel_beams=False, # Do not use pixel beams
+        bm_pix=10,
         mpi_comm=comm
     )
         
     # Run simulation
     tstart = time.time()
     simulator.simulate()
-    print("Run took %2.1f sec" % (time.time() - tstart))
-
+    print("Simulation took %2.1f sec" % (time.time() - tstart))
+    
     if myid != 0:
         # Wait for root worker to finish IO before quitting
         comm.Barrier()
-        #comm.Finalize() # FIXME
         sys.exit(0)
 
     # Write simulated data to file
     uvd = simulator.uvdata
-    red_grps, vecs, bl_lens, = uvd.get_redundancies()
-    uvd.write_uvh5("calibration/test_sim.uvh5", clobber=True)
-    
-    # Generate gain model
-    nfreqs = cfg['sim_spec']['nfreq']
-    gg = utils.generate_gains(Nant, nfreqs, **cfg['sim_gain'])
-    utils.save_simulated_gains(uvd, gg, outfile='test.calfits', overwrite=False)
-    
-    # Loop over all baselines and apply gain factor
-    uvd_g = copy.deepcopy(uvd)
-    for bl in np.unique(uvd_g.baseline_array):
-        
-        # Calculate product of gain factors (time-indep. for now)
-        ant1, ant2 = uvd_g.baseline_to_antnums(bl)
-        gigj = gg[ant1] * gg[ant2].conj()
-        
-        # Get index in data array
-        idxs = uvd_g.antpair2ind((ant1, ant2))
-        uvd_g.data_array[idxs,0,:,0] *= np.atleast_2d(gigj.astype(uvd_g.data_array.dtype))
-    uvd_g.write_uvh5("calibration/test_sim_g.uvh5", clobber=True)
+    if cfg_out['datafile_true'] != '':
+        uvd.write_uvh5(cfg_out['datafile_true'], clobber=cfg_out['clobber'])
     
     # Add noise
-    uvd_n = utils.add_noise_from_autos(uvd_g, nsamp=1., seed=10, inplace=False)    
-    uvd_n.write_uvh5("calibration/test_sim_n.uvh5", clobber=True)
-
-    visibility = uvd_n.get_data(1,3)
-    print(visibility[9,9])
-
-
+    if cfg_spec['apply_noise']:
+        uvd = utils.add_noise_from_autos(uvd, nsamp=cfg_n['nsamp'], 
+                                           seed=cfg_n['seed'], inplace=True)
+        if cfg_out['datafile_post_noise'] != '':
+            uvd.write_uvh5(cfg_out['datafile_post_noise'], 
+                           clobber=cfg_out['clobber'])
+    
+    # Add fluctuating gain model if requested
+    if cfg_spec['apply_gains']:
+        
+        # Generate fluctuating gain model
+        nfreqs = cfg_spec['nfreq']
+        gg = utils.generate_gains(Nant, nfreqs, **cfg['sim_gain'])
+        if cfg_out['gain_file'] != '':
+            utils.save_simulated_gains(uvd, gg, 
+                                       outfile=cfg_out['gain_file'], 
+                                       overwrite=cfg_out['clobber'])
+        
+        # Loop over all baselines and apply gain factor
+        for bl in np.unique(uvd.baseline_array):
+            
+            # Calculate product of gain factors (time-indep. for now)
+            ant1, ant2 = uvd.baseline_to_antnums(bl)
+            gigj = gg[ant1] * gg[ant2].conj()
+            
+            # Get index in data array
+            idxs = uvd.antpair2ind((ant1, ant2))
+            dtype = uvd.data_array.dtype
+            uvd.data_array[idxs,0,:,0] *= np.atleast_2d(gigj.astype(dtype))
+        
+        # Output gain-multiplied data if requested
+        uvd.write_uvh5(cfg_out['datafile_post_gains'], 
+                       clobber=cfg_out['clobber'])
+    
     # Sync with other workers and finalise
     comm.Barrier()
     sys.exit(0)
+    

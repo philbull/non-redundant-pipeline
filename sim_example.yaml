@@ -1,0 +1,42 @@
+
+sim_spec:
+    nfreq:              2
+    start_freq:         1.0e+8
+    bandwidth:          0.2e+8
+    ntimes:             4
+    integration_time:   40.
+    start_time:         2458902.33333
+    cat_name:           gleamegc.dat
+    apply_gains:        True
+    apply_noise:        True
+
+sim_output:
+    datafile_true:          test_sim.uvh5
+    datafile_post_gains:    test_sim_g.uvh5
+    datafile_post_noise:    test_sim_n.uvh5
+    gain_file:              test.calfits
+    clobber:                True
+
+sim_beam:
+    ref_freq:           1.e+8
+    beam_coeffs:        [ 2.35088101e-01, -4.20162599e-01,  2.99189140e-01, 
+                         -1.54189057e-01,  3.38651457e-02,  3.46936067e-02, 
+                         -4.98838130e-02,  3.23054464e-02, -7.56006552e-03, 
+                         -7.24620596e-03,  7.99563166e-03, -2.78125602e-03,
+                         -8.19945835e-04,  1.13791191e-03, -1.24301372e-04, 
+                         -3.74808752e-04,  1.93997376e-04, -1.72012040e-05 ]
+    spectral_index:     -0.6975
+    perturb:            False
+    seed:               11
+    perturb_scale:      0.05
+    mainlobe_scale:     1.0
+    mainlobe_width:     0.3 
+    nmodes:             8
+
+sim_gain:
+    nmodes:             8
+    seed:               10
+
+sim_noise:
+    nsamp:              1.0
+    seed:               10

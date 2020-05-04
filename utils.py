@@ -472,8 +472,11 @@ def load_config(config_file, cfg_default):
             
     return cfg
 
+
 def remove_file_ext(dfile):
-    """remove the .ext in file name"""
+    """
+    Remove the last file extension of a filename.
+    """
     if isinstance(dfile, (str, np.str)):
         fext = dfile.split('.')[-1]
         return (dfile[:-(len(fext)+1)])
@@ -481,9 +484,3 @@ def remove_file_ext(dfile):
         return dfile
 
 
-def load_gain(gain_file):
-    pkl_file = open(gain_file, 'rb')
-    true_gains = pickle.load(pkl_file)
-    pkl_file.close()
-
-    return true_gains
