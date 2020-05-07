@@ -107,7 +107,7 @@ if __name__ == '__main__':
 
 
     # (3) load true gains
-    true_gains = utils.load_gain(input_truegain)
+    true_gains, _ = hc.io.load_cal(input_truegain)
 
     # (4) Fix redundant cal. degeneracies and write new_gains in .calfits format
     # (this fixes the degens to the same values as the true/input gains)
@@ -127,11 +127,8 @@ if __name__ == '__main__':
 
     # (6) Perform coherent average (if requested)
     if coherent_avg:
-        print(coherent_avg)
         uvd_avg = utils.coherent_average_vis(uvd_cal, wgt_by_nsample=True, 
                                              inplace=False)
-    print(uvd_avg.get_data(0,1)[0,0])
-
     # (7) chenges few paramters structures for Pspec run
     spw = []
     spw.append(tuple(int(s) for s in 

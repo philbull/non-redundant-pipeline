@@ -222,11 +222,6 @@ def fix_redcal_degeneracies(data_file, red_gains, true_gains, outfile=None,
     # Get ntimes from gain array belonging to first key in the dict
     ntimes = red_gains[list(red_gains.keys())[0]].shape[0]
     
-    # Recreate true_gains dict in the format needed by remove_degen_gains
-    # (expands 1D freq.-dep gain array into 2D array as fn. of freq. and time)
-    true_gain_dict = {(ant, 'Jee'): np.outer(np.ones(ntimes), true_gains[ant]) 
-                      for ant in true_gains.keys()}
-    
     # Load data file and get redundancy information
     hd = hc.io.HERAData(data_file)
     reds = hc.redcal.get_reds(hd.antpos, pols=['ee',])
@@ -234,7 +229,7 @@ def fix_redcal_degeneracies(data_file, red_gains, true_gains, outfile=None,
     # Create calibrator and fix degeneracies
     RedCal = hc.redcal.RedundantCalibrator(reds)
     new_gains = RedCal.remove_degen_gains(red_gains, 
-                                          degen_gains=true_gain_dict, 
+                                          degen_gains=true_gains, 
                                           mode='complex')
     
     # Save as file if requested
