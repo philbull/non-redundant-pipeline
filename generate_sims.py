@@ -8,6 +8,7 @@ import numpy as np
 import uvtools
 import hera_cal as hc
 import pyuvdata
+from pyuvdata import UVData
 
 from hera_sim.visibilities import VisCPU, conversions
 from hera_sim.beams import PolyBeam,PerturbedPolyBeam
@@ -52,7 +53,7 @@ def default_cfg():
     cfg_gain = dict(nmodes=8, seed=None)
     
     # Noise parameters
-    cfg_noise = dict(nsamp=1.0, seed=None)
+    cfg_noise = dict(nsamp=1.0, seed=None, noise_file=None)
     
     # Combine into single dict
     cfg = { 'sim_beam':   cfg_beam,
@@ -97,7 +98,7 @@ if __name__ == '__main__':
     freq0 = 100e6
     freqs = np.unique(uvd.freq_array)
     ra_dec, flux = utils.load_ptsrc_catalog(cfg_spec['cat_name'], 
-                                            freq0=freq0, freqs=freqs)
+                                            freq0=freq0, freqs=freqs, usecols=(0,1,2,3))
 
     # Build list of beams using Best fit coeffcients for Chebyshev polynomials
     if cfg_beam['perturb']:
@@ -139,8 +140,9 @@ if __name__ == '__main__':
     
     # Add noise
     if cfg_spec['apply_noise']:
-        uvd = utils.add_noise_from_autos(uvd, nsamp=cfg_n['nsamp'], 
-                                           seed=cfg_n['seed'], inplace=True)
+        uvd = utils.add_noise_from_autos(uvd, uvd_noise=cfg_n['noise_file'], 
+                                         nsamp=cfg_n['nsamp'], 
+                                         seed=cfg_n['seed'], inplace=True)
         if cfg_out['datafile_post_noise'] != '':
             uvd.write_uvh5(cfg_out['datafile_post_noise'], 
                            clobber=cfg_out['clobber'])
@@ -175,4 +177,3 @@ if __name__ == '__main__':
     # Sync with other workers and finalise
     comm.Barrier()
     sys.exit(0)
-    

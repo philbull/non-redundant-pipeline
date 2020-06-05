@@ -90,10 +90,14 @@ if __name__ == '__main__':
             
     # Get input data filename
     input_data = cfg['analysis']['input_data']
+    output_data = cfg['analysis']['output_data']
     input_truegain = cfg['analysis']['input_truegain']
     coherent_avg = cfg['analysis']['coherent_avg']
-    #red_grps, vecs, bl_lens, = uvd.get_redundancies()
-
+  
+    input_ext = utils.remove_file_ext(input_data)
+    psc_out_inco = input_ext+cfg['pspec']['incoherent_ext']
+    psc_out_co = input_ext+cfg['pspec']['coherent_ext']
+ 
 
     # (1) Perform redundant calibration
     tstart = time.time()
@@ -107,31 +111,32 @@ if __name__ == '__main__':
 
 
     # (3) load true gains
-    true_gains = utils.load_gain(input_truegain)
+    true_gains, _ = hc.io.load_cal(input_truegain)
 
     # (4) Fix redundant cal. degeneracies and write new_gains in .calfits format
     # (this fixes the degens to the same values as the true/input gains)
-    #true_gains = None # FIXME: Load these! They will be in a calfits file
     new_gains = utils.fix_redcal_degeneracies(input_data, 
                                               cal['g_omnical'], 
                                               true_gains)
-    hc.redcal.write_cal('new_gains.calfits',new_gains,
+    hc.redcal.write_cal(input_ext+'_new.calfits',new_gains,
                         uvd_in.freq_array.flatten(),
                         np.unique(uvd_in.time_array))
 
     # (5) Load calibration solutions and apply to data
     uvc = UVCal()
-    uvc.read_calfits("new_gains.calfits")
+    uvc.read_calfits(input_ext+'_new.calfits')
     uvd_cal = uvutils.uvcalibrate(uvd_in, uvc, inplace=False, prop_flags=True, 
                                   flag_missing=True)
 
+    
+    # Output calibrated data
+    uvd_cal.write_uvh5(output_data, clobber=True)
+
+
     # (6) Perform coherent average (if requested)
     if coherent_avg:
-        print(coherent_avg)
         uvd_avg = utils.coherent_average_vis(uvd_cal, wgt_by_nsample=True, 
                                              inplace=False)
-    print(uvd_avg.get_data(0,1)[0,0])
-
     # (7) chenges few paramters structures for Pspec run
     spw = []
     spw.append(tuple(int(s) for s in 
@@ -145,11 +150,6 @@ if __name__ == '__main__':
 
 
     # (8) Estimate power spectra
-    input_ext = utils.remove_file_ext(input_data)
-    psc_out_inco = input_ext+cfg['pspec']['incoherent_ext']
-    psc_out_co = input_ext+cfg['pspec']['coherent_ext']
-  
-
     tstart = time.time()
 
     pspecd = hp.pspecdata.pspec_run([uvd_cal,],

@@ -1,6 +1,7 @@
 import numpy as np
 
 import pyuvdata.utils as uvutils
+from pyuvdata import UVData
 import hera_pspec as hp
 import hera_cal as hc
 from hera_sim import io
@@ -8,7 +9,7 @@ from hera_sim import io
 import copy, yaml, pickle
 
 
-def add_noise_from_autos(uvd_in, nsamp=1, seed=None, inplace=False):
+def add_noise_from_autos(uvd_in, uvd_noise=None, nsamp=1, seed=None, inplace=False):
     """
     Add noise to a simulation, using the autos to estimate the noise rms.
     
@@ -45,12 +46,24 @@ def add_noise_from_autos(uvd_in, nsamp=1, seed=None, inplace=False):
     # Get channel width and integration time
     dnu = uvd.channel_width # in Hz
     dt = uvd.integration_time[0] # in sec
-    
+
+    #read noise .uvh5 file if exists
+    if (uvd_noise != None):
+        uvd_n = UVData()
+        uvd_n.read_uvh5(uvd_noise)
+
     # Get all autos
     v_auto = {}
     for ant in uvd.antenna_numbers:
         auto_idxs = uvd.antpair2ind(ant, ant)
-        v_auto[ant] = uvd.data_array[auto_idxs]
+
+        #fill autos from noise file if exists
+        if (uvd_noise != None) and (ant in uvd_n.antenna_numbers):
+            v_auto[ant] = uvd_n.data_array[auto_idxs]
+
+        #else fill from same file
+        else:
+            v_auto[ant] = uvd.data_array[auto_idxs]
     
     # Loop over baselines and add noise to each
     for bl in np.unique(uvd.baseline_array):
@@ -222,11 +235,6 @@ def fix_redcal_degeneracies(data_file, red_gains, true_gains, outfile=None,
     # Get ntimes from gain array belonging to first key in the dict
     ntimes = red_gains[list(red_gains.keys())[0]].shape[0]
     
-    # Recreate true_gains dict in the format needed by remove_degen_gains
-    # (expands 1D freq.-dep gain array into 2D array as fn. of freq. and time)
-    true_gain_dict = {(ant, 'Jee'): np.outer(np.ones(ntimes), true_gains[ant]) 
-                      for ant in true_gains.keys()}
-    
     # Load data file and get redundancy information
     hd = hc.io.HERAData(data_file)
     reds = hc.redcal.get_reds(hd.antpos, pols=['ee',])
@@ -234,7 +242,7 @@ def fix_redcal_degeneracies(data_file, red_gains, true_gains, outfile=None,
     # Create calibrator and fix degeneracies
     RedCal = hc.redcal.RedundantCalibrator(reds)
     new_gains = RedCal.remove_degen_gains(red_gains, 
-                                          degen_gains=true_gain_dict, 
+                                          degen_gains=true_gains, 
                                           mode='complex')
     
     # Save as file if requested
@@ -422,9 +430,10 @@ def load_ptsrc_catalog(cat_name, freqs, freq0=1.e8, usecols=(10,12,77,-5)):
     flux : array_like
         Fluxes of point sources as a function of frequency, in Jy.
     """
-    aa = np.genfromtxt(cat_name, usecols=usecols)
-    bb = aa[ (aa[:,2] >= 15.) & np.isfinite(aa[:,3])] # Fluxes more than 1 Jy
-    
+    #aa = np.genfromtxt(cat_name, usecols=usecols)
+    #bb = aa[ (aa[:,2] >= 15.) & np.isfinite(aa[:,3])] # Fluxes more than 1 Jy
+    bb = np.genfromtxt(cat_name, usecols=usecols) 
+
     # Get angular positions
     ra_dec = np.deg2rad(bb[:,0:2])
     ra_dec.shape
