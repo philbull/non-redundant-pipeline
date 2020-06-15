@@ -9,7 +9,7 @@ from hera_sim import io
 import copy, yaml, pickle
 
 
-def add_noise_from_autos(uvd_in, uvd_noise=None, nsamp=1, seed=None, inplace=False):
+def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=False):
     """
     Add noise to a simulation, using the autos to estimate the noise rms.
     
@@ -17,6 +17,9 @@ def add_noise_from_autos(uvd_in, uvd_noise=None, nsamp=1, seed=None, inplace=Fal
     ----------
     uvd_in : UVData
         Input UVData object.
+
+    input_noise : string, optional
+        path to noise data file, Default: None (use same visibility file)
     
     nsamp : float, optional
         Rescale the generated noise according to some effective number of 
@@ -436,8 +439,7 @@ def load_ptsrc_catalog(cat_name, freqs, freq0=1.e8, usecols=(10,12,77,-5)):
 
     # Get angular positions
     ra_dec = np.deg2rad(bb[:,0:2])
-    ra_dec.shape
-    
+        
     # Calculate SEDs
     flux = (freqs[:,np.newaxis]/freq0)**bb[:,3].T * bb[:,2].T
     

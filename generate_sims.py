@@ -140,7 +140,7 @@ if __name__ == '__main__':
     
     # Add noise
     if cfg_spec['apply_noise']:
-        uvd = utils.add_noise_from_autos(uvd, uvd_noise=cfg_n['noise_file'], 
+        uvd = utils.add_noise_from_autos(uvd, input_noise=cfg_n['noise_file'], 
                                          nsamp=cfg_n['nsamp'], 
                                          seed=cfg_n['seed'], inplace=True)
         if cfg_out['datafile_post_noise'] != '':
