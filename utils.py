@@ -51,9 +51,9 @@ def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=F
     dt = uvd.integration_time[0] # in sec
 
     #read noise .uvh5 file if exists
-    if (uvd_noise != None):
+    if (input_noise != None):
         uvd_n = UVData()
-        uvd_n.read_uvh5(uvd_noise)
+        uvd_n.read_uvh5(input_noise)
 
     # Get all autos
     v_auto = {}
@@ -61,7 +61,7 @@ def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=F
         auto_idxs = uvd.antpair2ind(ant, ant)
 
         #fill autos from noise file if exists
-        if (uvd_noise != None) and (ant in uvd_n.antenna_numbers):
+        if (input_noise != None) and (ant in uvd_n.antenna_numbers):
             v_auto[ant] = uvd_n.data_array[auto_idxs]
 
         #else fill from same file
