@@ -1,8 +1,8 @@
     
 analysis:
-    input_data:         calibration/viscatBC_g.uvh5
-    output_data:        calibration/viscatBC_g_cal.uvh5
-    input_truegain:     calibration/viscatBC.calfits
+    input_data:         calibration.realiz/viscatBC_side0.8_g.uvh5
+    output_data:        calibration.realiz/viscatBC_side0.8_g_cal.uvh5
+    input_truegain:     calibration.realiz/viscatBC_side0.8.calfits
     coherent_avg:       True
 
 
@@ -51,9 +51,12 @@ pspec_run:
     taper:              'blackman-harris'
     verbose:            True
     overwrite:          True
-    bl_len_range:       (0., 15.)
-    bl_deg_range:       (0.0, 2.0)
+    bl_len_range:       (0., 30.)
+    bl_deg_range:       (0.0, 181.0)
     interleave_times:   True
     exclude_auto_bls:   False
     exclude_cross_bls:  False
     exclude_permutations: True
+
+realiz:
+    nsample:           20

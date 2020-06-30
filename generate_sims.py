@@ -40,13 +40,10 @@ def default_cfg():
                      mainlobe_scale=1.0,
                      mainlobe_width=0.3, 
                      nmodes=8,
-                     beam_coeffs=[
-                               2.35088101e-01, -4.20162599e-01,  2.99189140e-01, 
-                              -1.54189057e-01,  3.38651457e-02,  3.46936067e-02, 
-                              -4.98838130e-02,  3.23054464e-02, -7.56006552e-03, 
-                              -7.24620596e-03,  7.99563166e-03, -2.78125602e-03,
-                              -8.19945835e-04,  1.13791191e-03, -1.24301372e-04, 
-                              -3.74808752e-04,  1.93997376e-04, -1.72012040e-05 
+                     beam_coeffs=[0.29778665, -0.44821433,  0.27338272, -0.10030698, -0.01195859,
+                                  0.06063853, -0.04593295,  0.0107879 ,  0.01390283, -0.01881641,
+                                 -0.00177106,  0.01265177, -0.00568299, -0.00333975,  0.00452368,
+                                  0.00151808, -0.00593812,  0.00351559
                                 ] )
     
     # Fluctuating gain model parameters
@@ -83,7 +80,8 @@ if __name__ == '__main__':
     cfg_spec = cfg['sim_spec']
     cfg_out = cfg['sim_output']
     cfg_beam = cfg['sim_beam']
-    cfg_n = cfg['sim_noise']
+    cfg_gain = cfg['sim_gain']
+    cfg_noise = cfg['sim_noise']
     
     
     # Construct array layout to simulate
@@ -140,9 +138,9 @@ if __name__ == '__main__':
     
     # Add noise
     if cfg_spec['apply_noise']:
-        uvd = utils.add_noise_from_autos(uvd, input_noise=cfg_n['noise_file'], 
-                                         nsamp=cfg_n['nsamp'], 
-                                         seed=cfg_n['seed'], inplace=True)
+        uvd = utils.add_noise_from_autos(uvd, input_noise=cfg_noise['noise_file'], 
+                                         nsamp=cfg_noise['nsamp'], 
+                                         seed=cfg_noise['seed'], inplace=True)
         if cfg_out['datafile_post_noise'] != '':
             uvd.write_uvh5(cfg_out['datafile_post_noise'], 
                            clobber=cfg_out['clobber'])
