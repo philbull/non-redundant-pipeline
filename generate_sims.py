@@ -114,8 +114,7 @@ if __name__ == '__main__':
         sky_freqs=freqs,
         point_source_pos=ra_dec,
         point_source_flux=flux,
-        real_dtype=np.float64,
-        complex_dtype=np.complex128,
+        precision=2,
         use_pixel_beams=False, # Do not use pixel beams
         bm_pix=10,
         mpi_comm=comm
