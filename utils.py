@@ -51,7 +51,7 @@ def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=F
     dt = uvd.integration_time[0] # in sec
 
     #read noise .uvh5 file if exists
-    if (input_noise != None):
+    if input_noise is not None:
         uvd_n = UVData()
         uvd_n.read_uvh5(input_noise)
 

@@ -6,9 +6,12 @@ sim_spec:
     ntimes:             600
     integration_time:   40.
     start_time:         2458902.4
-    cat_name:           ../pb_hera/catBC.txt
+    cat_name:           ../pb_hera/catA.txt
     apply_gains:        True
     apply_noise:        True
+    ant_pert:           False
+    seed:               15
+    ant_pert_sigma:     0.05
 
 sim_output:
     datafile_true:          calibration/viscatBC.uvh5
@@ -24,13 +27,25 @@ sim_beam:
                           0.01390283, -0.01881641, -0.00177106,  0.01265177, 
                          -0.00568299, -0.00333975,  0.00452368,  0.00151808, 
                          -0.00593812,  0.00351559 ]
-    spectral_index:     -0.6975
-    perturb:            False
-    seed:               11
-    perturb_scale:      0.8
-    mainlobe_scale:     1.0
-    mainlobe_width:     0.3 
-    nmodes:             8
+    spectral_index:       -0.6975
+    perturb:              False
+    seed:                 11
+    perturb_scale:        0.8
+    mainlobe_scale_mean:  1.0
+    mainlobe_scale_sigma: 0.0
+    xstretch_mean:        1.0
+    xstretch_sigma:       0.0
+    ystretch_mean:        1.0
+    ystretch_sigma:       0.0
+    xystretch_same:       False
+    xystretch_dist:       None
+    outlier_ant_id:       [2]
+    outlier_xstretch:     [1.1]
+    rotation_dist:        None
+    rotation_mean:        0.0
+    rotation_sigma:       0.0
+    mainlobe_width:       0.3 
+    nmodes:               8
 
 sim_gain:
     nmodes:             8
@@ -39,4 +54,4 @@ sim_gain:
 sim_noise:
     nsamp:              1.0
     seed:               10
-    noise_file:         calibration.nonoise/viscatall.uvh5
+    noise_file:         
