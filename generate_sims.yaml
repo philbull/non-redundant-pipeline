@@ -13,8 +13,15 @@ sim_spec:
     seed:               15
     ant_pert_sigma:     0.05
 
+sim_diffuse:
+    use_diffuse:        False
+    nside:              64
+    beam_pol:           XX
+    nprocs:             1  
+
 sim_output:
     datafile_true:          calibration/viscatBC.uvh5
+    datafile_post_diffuse:  calibration/viscatBC_d.uvh5
     datafile_post_gains:    calibration/viscatBC_g.uvh5
     datafile_post_noise:    calibration/viscatBC_n.uvh5
     gain_file:              calibration/viscatBC.calfits
@@ -55,3 +62,4 @@ sim_noise:
     nsamp:              1.0
     seed:               10
     noise_file:         
+    
