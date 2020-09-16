@@ -21,14 +21,14 @@ redcal:
     bl_error_tol:       1.0
     ex_ants:            [] 
     ant_z_thresh:       4. 
-    max_rerun:          10 
+    max_rerun:          100 
     solar_horizon:      0.0 
     flag_nchan_low:     0 
     flag_nchan_high:    0 
     fc_conv_crit:       1.e-7 
-    fc_maxiter:         1000 
+    fc_maxiter:         50000 
     oc_conv_crit:       1.e-12 
-    oc_maxiter:         3500 
+    oc_maxiter:         50000 
     check_every:        10 
     check_after:        50 
     gain:               0.4 
@@ -51,8 +51,8 @@ pspec_run:
     taper:              'blackman-harris'
     verbose:            True
     overwrite:          True
-    bl_len_range:       (0., 15.)
-    bl_deg_range:       (0.0, 2.0)
+    bl_len_range:       (0., 20.)
+    bl_deg_range:       (0.0, 5.0)
     interleave_times:   True
     exclude_auto_bls:   False
     exclude_cross_bls:  False

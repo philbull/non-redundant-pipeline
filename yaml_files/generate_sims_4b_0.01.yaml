@@ -6,7 +6,7 @@ sim_spec:
     ntimes:             600
     integration_time:   40.
     start_time:         2458902.4
-    cat_name:           ../pb_hera/catBC.txt
+    cat_name:           ../../pb_hera/catBC.txt
     apply_gains:        True
     apply_noise:        True
     ant_pert:           False
@@ -15,10 +15,10 @@ sim_spec:
     big_array:          False
 
 sim_output:
-    datafile_true:          calibration/viscatBC_4b_0.01.uvh5
-    datafile_post_gains:    calibration/viscatBC_4b_0.01_g.uvh5
-    datafile_post_noise:    calibration/viscatBC_4b_0.01_n.uvh5
-    gain_file:              calibration/viscatBC_4b_0.01.calfits
+    datafile_true:          ../calibration/viscatBC_4b_0.01.uvh5
+    datafile_post_gains:    ../calibration/viscatBC_4b_0.01_g.uvh5
+    datafile_post_noise:    ../calibration/viscatBC_4b_0.01_n.uvh5
+    gain_file:              ../calibration/viscatBC_4b_0.01.calfits
     clobber:                True
 
 sim_beam:
@@ -55,4 +55,4 @@ sim_gain:
 sim_noise:
     nsamp:              1.0
     seed:               10
-    noise_file:         calibration.nonoise/viscatall_4b_0.01.uvh5
+    noise_file:         ../calibration.nonoise/viscatall_4b_0.01.uvh5
