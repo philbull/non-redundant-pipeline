@@ -30,14 +30,28 @@ def default_cfg():
                      ntimes=40,
                      cat_name="gleamegc.dat",
                      apply_gains=True,
-                     apply_noise=True )
+                     apply_noise=True,
+                     ant_pert=False,
+                     seed=None,
+                     ant_pert_sigma=0.0,
+                     big_array=False)
                         
     # Beam model parameters
     cfg_beam = dict( ref_freq=1.e+8,
                      spindex=-0.6975,
                      seed=None,
-                     sigma=0.05,
-                     mainlobe_scale=1.0,
+                     perturb_scale=0.0,
+                     mainlobe_scale_mean=1.0,
+                     mainlobe_scale_sigma=0.0,
+                     xstretch_mean=1.0,
+                     xstretch_sigma=0.0,
+                     ystretch_mean=1.0,
+                     ystretch_sigma=0.0,
+                     xystretch_same=True,
+                     xystretch_dist=None,
+                     rotation_dist=None,
+                     rotation_mean=0.0,
+                     rotation_sigma=0.0,
                      mainlobe_width=0.3, 
                      nmodes=8,
                      beam_coeffs=[0.29778665, -0.44821433,  0.27338272, -0.10030698, -0.01195859,
@@ -85,9 +99,15 @@ if __name__ == '__main__':
     
     
     # Construct array layout to simulate
-    ants = utils.build_array()
+    ants = utils.build_array(cfg_spec['big_array'])
     Nant = len(ants)
     ant_index = list(ants.keys())
+
+    #perturb antenna position
+    if cfg_spec['ant_pert']:
+        np.random.seed(cfg_spec['seed'])
+        for i in range(Nant):
+            ants[i] = tuple(list(ants[i]) + (cfg_spec['ant_pert_sigma'] * np.random.randn(3))) #3 for x,y,z
     
     # Build empty UVData object with correct dimensions
     uvd = utils.empty_uvdata(ants=ants, **cfg_spec)
@@ -100,11 +120,60 @@ if __name__ == '__main__':
 
     # Build list of beams using Best fit coeffcients for Chebyshev polynomials
     if cfg_beam['perturb']:
+
+        mainlobe_scale_mean = cfg_beam['mainlobe_scale_mean']
+        mainlobe_scale_sigma = cfg_beam['mainlobe_scale_sigma']
+        xstretch_mean = cfg_beam['xstretch_mean']
+        xstretch_sigma = cfg_beam['xstretch_sigma']
+        ystretch_mean = cfg_beam['ystretch_mean']
+        ystretch_sigma = cfg_beam['ystretch_sigma']
+        rotation_mean = cfg_beam['rotation_mean']
+        rotation_sigma = cfg_beam['rotation_sigma']
+
         np.random.seed(cfg_beam['seed'])
-        beam_list = [PerturbedPolyBeam(np.random.randn(cfg_beam['nmodes']), 
+
+        #to perturb mainlobe
+        mainlobe_scale = mainlobe_scale_sigma * np.random.randn(Nant) + mainlobe_scale_mean
+
+        #to perturb xstretch and ystretch
+        xstretch = np.full(Nant,xstretch_mean)
+        ystretch = np.full(Nant,ystretch_mean)
+        
+        if cfg_beam['xystretch_dist']=='Gaussian':
+            xstretch = xstretch_sigma * np.random.randn(Nant) + xstretch_mean
+            if cfg_beam['xystretch_same']==True:
+                ystretch = xstretch
+            else:
+                ystretch = ystretch_sigma * np.random.randn(Nant) + ystretch_mean
+    
+        if cfg_beam['xystretch_dist']=='Uniform': 
+            xstretch = np.random.uniform(-2.*xstretch_sigma,2.*xstretch_sigma,Nant) + xstretch_mean
+            if cfg_beam['xystretch_same']==True:
+                ystretch = xstretch
+            else:
+                ystretch = np.random.uniform(-2.*ystretch_sigma,2.*ystretch_sigma,Nant) + ystretch_mean
+
+        if cfg_beam['xystretch_dist']=='Outlier':
+            xstretch[cfg_beam['outlier_ant_id']] = cfg_beam['outlier_xstretch']
+            ystretch = xstretch
+
+        #to perturb rotation
+        rotation = np.zeros(Nant)
+        if cfg_beam['rotation_dist']=='Gaussian': 
+            rotation = rotation_sigma * np.random.randn(Nant) + rotation_mean
+
+        if cfg_beam['rotation_dist']=='Uniform':
+            rotation = np.random.uniform(0.,360.,Nant)
+
+        #to perturb sidelobe and other perturbation
+        beam_list = [PerturbedPolyBeam(np.random.randn(cfg_beam['nmodes']),
+                                       mainlobe_scale= mainlobe_scale[i],
+                                       xstretch=xstretch[i], ystretch=ystretch[i],
+                                       rotation=rotation[i],
                                         **cfg_beam) for i in range(Nant)]
     else:
         beam_list = [PolyBeam(**cfg_beam) for i in range(Nant)]
+
 
     # Create VisCPU visibility simulator object (MPI-enabled)
     simulator = VisCPU(

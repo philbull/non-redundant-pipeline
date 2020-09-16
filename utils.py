@@ -51,7 +51,7 @@ def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=F
     dt = uvd.integration_time[0] # in sec
 
     #read noise .uvh5 file if exists
-    if (input_noise != None):
+    if input_noise is not None:
         uvd_n = UVData()
         uvd_n.read_uvh5(input_noise)
 
@@ -91,19 +91,31 @@ def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=F
     return uvd
 
 
-def build_array():
+def build_array(big_array=False):
     """
     Create a hexagonal array layout.
     """
     dist = 14.6
     ants = {}
 
-    for i in range(0, 4):
-        ants.update([(i, (-3.*dist/2 + i*14.6, 0., 0.))])   
-    for i in range(4, 7):
-        ants.update([(i, (-2.*dist/2 + (i-4)*14.6, -1.* np.sqrt(3) * dist/2, 0.))])   
-    for i in range(7, 10):
-        ants.update([(i, (-2.*dist/2 + (i-7)*14.6, +1.* np.sqrt(3) * dist/2, 0.))])
+    if big_array:
+        for i in range(0, 6):
+            ants.update([(i, (-5.*dist/2 + i*14.6, 0., 0.))])
+        for i in range(6, 11):
+            ants.update([(i, (-4.*dist/2 + (i-6)*14.6, -1.* np.sqrt(3) * dist/2, 0.))])
+        for i in range(11, 16):
+            ants.update([(i, (-4.*dist/2 + (i-11)*14.6, +1.* np.sqrt(3) * dist/2, 0.))])
+        for i in range(16, 20):
+            ants.update([(i, (-3.*dist/2 + (i-16)*14.6, -2.* np.sqrt(3) * dist/2, 0.))])
+        for i in range(20, 24):
+            ants.update([(i, (-3.*dist/2 + (i-20)*14.6, +2.* np.sqrt(3) * dist/2, 0.))])
+    else:
+        for i in range(0, 4):
+            ants.update([(i, (-3.*dist/2 + i*14.6, 0., 0.))])   
+        for i in range(4, 7):
+            ants.update([(i, (-2.*dist/2 + (i-4)*14.6, -1.* np.sqrt(3) * dist/2, 0.))])   
+        for i in range(7, 10):
+            ants.update([(i, (-2.*dist/2 + (i-7)*14.6, +1.* np.sqrt(3) * dist/2, 0.))])
     return ants
 
 
