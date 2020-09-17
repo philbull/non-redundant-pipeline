@@ -48,7 +48,7 @@ def default_cfg():
                         obs_latitude=-30.7215277777,
                         obs_longitude = 21.4283055554,
                         beam_pol='XX',
-                        nprocs=1 ) # FIXME
+                        nprocs=1 )
     
     # Beam model parameters
     cfg_beam = dict( ref_freq=1.e8,
@@ -137,7 +137,7 @@ if __name__ == '__main__':
                                             freq0=freq0, freqs=freqs, 
                                             usecols=(0,1,2,3))
 
-    # Build list of beams using Best fit coeffcients for Chebyshev polynomials
+    # Build list of beams using best-fit coefficients for Chebyshev polynomials
     if cfg_beam['perturb']:
 
         mainlobe_scale_mean = cfg_beam['mainlobe_scale_mean']
@@ -221,7 +221,7 @@ if __name__ == '__main__':
     print("Simulation took %2.1f sec" % (time.time() - tstart))
     
     if myid != 0:
-        # Wait for root worker to finish IO before quitting
+        # Wait for root worker to finish IO before ending all other worker procs
         comm.Barrier()
         sys.exit(0)
 
@@ -321,3 +321,4 @@ if __name__ == '__main__':
     # Sync with other workers and finalise
     comm.Barrier()
     sys.exit(0)
+    
