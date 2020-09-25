@@ -91,31 +91,54 @@ def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=F
     return uvd
 
 
-def build_array(big_array=False):
+def build_hex_array(hex_spec=(3,4), ants_per_row=None, d=14.6):
     """
-    Create a hexagonal array layout.
+    Build an antenna position dict for a hexagonally close-packed array.
+    
+    Parameters
+    ----------
+    hex_spec : tuple, optional
+        If `ants_per_row = None`, this is used to specify a hex array as 
+        `hex_spec = (nmin, nmax)`, where `nmin` is the number of antennas in 
+        the bottom and top rows, and `nmax` is the number in the middle row. 
+        The number per row increases by 1 until the middle row is reached.
+        
+        Default: (3,4) [a hex with 3,4,3 antennas per row]
+    
+    ants_per_row : array_like, optional
+        Number of antennas per row. Default: None.
+    
+    d : float, optional
+        Minimum baseline length between antennas in the hex array, in meters. 
+        Default: 14.6.
+    
+    Returns
+    -------
+    ants : dict
+        Dictionary with antenna IDs as the keys, and tuples with antenna 
+        (x, y, z) position values (with respect to the array center) as the 
+        values. Units: meters.
     """
-    dist = 14.6
     ants = {}
-
-    if big_array:
-        for i in range(0, 6):
-            ants.update([(i, (-5.*dist/2 + i*14.6, 0., 0.))])
-        for i in range(6, 11):
-            ants.update([(i, (-4.*dist/2 + (i-6)*14.6, -1.* np.sqrt(3) * dist/2, 0.))])
-        for i in range(11, 16):
-            ants.update([(i, (-4.*dist/2 + (i-11)*14.6, +1.* np.sqrt(3) * dist/2, 0.))])
-        for i in range(16, 20):
-            ants.update([(i, (-3.*dist/2 + (i-16)*14.6, -2.* np.sqrt(3) * dist/2, 0.))])
-        for i in range(20, 24):
-            ants.update([(i, (-3.*dist/2 + (i-20)*14.6, +2.* np.sqrt(3) * dist/2, 0.))])
-    else:
-        for i in range(0, 4):
-            ants.update([(i, (-3.*dist/2 + i*14.6, 0., 0.))])   
-        for i in range(4, 7):
-            ants.update([(i, (-2.*dist/2 + (i-4)*14.6, -1.* np.sqrt(3) * dist/2, 0.))])   
-        for i in range(7, 10):
-            ants.update([(i, (-2.*dist/2 + (i-7)*14.6, +1.* np.sqrt(3) * dist/2, 0.))])
+    
+    # If ants_per_row isn't given, build it from hex_spec
+    if ants_per_row is None:
+        r = np.arange(hex_spec[0], hex_spec[1]+1).tolist()
+        ants_per_row = r[:-1] + r[::-1]
+    
+    # Assign antennas
+    k = -1
+    y = 0.
+    dy = d * np.sqrt(3) / 2. # delta y = d sin(60 deg)
+    for j, r in enumerate(ants_per_row):
+        
+        # Calculate y coord and x offset
+        y = -0.5 * dy * (len(ants_per_row)-1) + dy * j
+        x = np.linspace(-d*(r-1)/2., d*(r-1)/2., r)
+        for i in range(r):
+            k += 1
+            ants[k] = (x[i], y, 0.)
+            
     return ants
 
 

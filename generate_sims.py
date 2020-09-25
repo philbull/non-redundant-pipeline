@@ -40,7 +40,9 @@ def default_cfg():
                      ant_pert=False,
                      seed=None,
                      ant_pert_sigma=0.0,
-                     big_array=False)
+                     hex_spec=(3,4), 
+                     hex_ants_per_row=None, 
+                     hex_ant_sep=14.6 )
                         
     # Diffuse model specification
     cfg_diffuse = dict( use_diffuse=False,
@@ -116,7 +118,9 @@ if __name__ == '__main__':
     cfg_noise = cfg['sim_noise']
     
     # Construct array layout to simulate
-    ants = utils.build_array(cfg_spec['big_array'])
+    ants = utils.build_hex_array(hex_spec=cfg_spec['hex_spec'], 
+                                 ants_per_row=cfg_spec['hex_ants_per_row'], 
+                                 d=cfg_spec['hex_ant_sep']):
     Nant = len(ants)
     ant_index = list(ants.keys())
 
