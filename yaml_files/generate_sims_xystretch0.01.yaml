@@ -6,19 +6,22 @@ sim_spec:
     ntimes:             600
     integration_time:   40.
     start_time:         2458902.4
-    cat_name:           ../../pb_hera_bakup/catBC_nobright.txt
+    cat_name:           ../../pb_hera/catBC.txt
     apply_gains:        True
     apply_noise:        True
     ant_pert:           False
     seed:               15
     ant_pert_sigma:     0.05
-    big_array:          False
+    hex_spec:           [3, 4]
+    hex_ants_per_row:   None 
+    hex_ant_sep:        14.6
+
 
 sim_output:
-    datafile_true:          ../calibration/viscatBC_stretch0.02.uvh5
-    datafile_post_gains:    ../calibration/viscatBC_stretch0.02_g.uvh5
-    datafile_post_noise:    ../calibration/viscatBC_stretch0.02_n.uvh5
-    gain_file:              ../calibration/viscatBC_stretch0.02.calfits
+    datafile_true:          ../calibration/viscatBC_stretch0.01.uvh5
+    datafile_post_gains:    ../calibration/viscatBC_stretch0.01_g.uvh5
+    datafile_post_noise:    ../calibration/viscatBC_stretch0.01_n.uvh5
+    gain_file:              ../calibration/viscatBC_stretch0.01.calfits
     clobber:                True
 
 sim_beam:
@@ -35,9 +38,9 @@ sim_beam:
     mainlobe_scale_mean:  1.0
     mainlobe_scale_sigma: 0.0
     xstretch_mean:        1.0
-    xstretch_sigma:       0.02
+    xstretch_sigma:       0.01
     ystretch_mean:        1.0
-    ystretch_sigma:       0.1
+    ystretch_sigma:       0.01
     xystretch_same:       True
     xystretch_dist:       Gaussian
     outlier_ant_id:       [2]
@@ -55,4 +58,4 @@ sim_gain:
 sim_noise:
     nsamp:              1.0
     seed:               10
-    noise_file:         ../calibration.nonoise/viscatall_stretch0.02.uvh5
+    noise_file:         ../calibration.nonoise/viscatall_stretch0.01.uvh5

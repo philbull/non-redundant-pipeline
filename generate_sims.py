@@ -40,7 +40,9 @@ def default_cfg():
                      ant_pert=False,
                      seed=None,
                      ant_pert_sigma=0.0,
-                     big_array=False)
+                     hex_spec=(3,4), 
+                     hex_ants_per_row=None, 
+                     hex_ant_sep=14.6 )
                         
     # Diffuse model specification
     cfg_diffuse = dict( use_diffuse=False,
@@ -48,7 +50,7 @@ def default_cfg():
                         obs_latitude=-30.7215277777,
                         obs_longitude = 21.4283055554,
                         beam_pol='XX',
-                        nprocs=1 ) # FIXME
+                        nprocs=1 )
     
     # Beam model parameters
     cfg_beam = dict( ref_freq=1.e8,
@@ -116,7 +118,9 @@ if __name__ == '__main__':
     cfg_noise = cfg['sim_noise']
     
     # Construct array layout to simulate
-    ants = utils.build_array(cfg_spec['big_array'])
+    ants = utils.build_hex_array(hex_spec=cfg_spec['hex_spec'], 
+                                 ants_per_row=cfg_spec['hex_ants_per_row'], 
+                                 d=cfg_spec['hex_ant_sep'])
     Nant = len(ants)
     ant_index = list(ants.keys())
 
@@ -137,7 +141,7 @@ if __name__ == '__main__':
                                             freq0=freq0, freqs=freqs, 
                                             usecols=(0,1,2,3))
 
-    # Build list of beams using Best fit coeffcients for Chebyshev polynomials
+    # Build list of beams using best-fit coefficients for Chebyshev polynomials
     if cfg_beam['perturb']:
 
         mainlobe_scale_mean = cfg_beam['mainlobe_scale_mean']
@@ -221,7 +225,7 @@ if __name__ == '__main__':
     print("Simulation took %2.1f sec" % (time.time() - tstart))
     
     if myid != 0:
-        # Wait for root worker to finish IO before quitting
+        # Wait for root worker to finish IO before ending all other worker procs
         comm.Barrier()
         sys.exit(0)
 
@@ -321,3 +325,4 @@ if __name__ == '__main__':
     # Sync with other workers and finalise
     comm.Barrier()
     sys.exit(0)
+    

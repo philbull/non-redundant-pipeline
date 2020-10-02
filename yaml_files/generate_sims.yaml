@@ -12,7 +12,9 @@ sim_spec:
     ant_pert:           False
     seed:               15
     ant_pert_sigma:     0.05
-    big_array:          False
+    hex_spec:           [3, 4]
+    hex_ants_per_row:   None 
+    hex_ant_sep:        14.6
 
 sim_output:
     datafile_true:          ../calibration/viscatBC.uvh5

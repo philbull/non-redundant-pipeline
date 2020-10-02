@@ -120,7 +120,7 @@ if __name__ == '__main__':
     new_gains = utils.fix_redcal_degeneracies(input_data, 
                                               cal['g_omnical'], 
                                               true_gains)
-    hc.redcal.write_cal(input_ext+'_new.calfits',new_gains,
+    hc.redcal.write_cal(input_ext+'_new.calfits', new_gains,
                         uvd_in.freq_array.flatten(),
                         np.unique(uvd_in.time_array))
 
@@ -130,7 +130,6 @@ if __name__ == '__main__':
     uvd_cal = uvutils.uvcalibrate(uvd_in, uvc, inplace=False, prop_flags=True, 
                                   flag_missing=True)
 
-    
     # Output calibrated data
     uvd_cal.write_uvh5(output_data, clobber=True)
 
@@ -139,26 +138,27 @@ if __name__ == '__main__':
     if coherent_avg:
         uvd_avg = utils.coherent_average_vis(uvd_cal, wgt_by_nsample=True, 
                                              inplace=False)
-    # (7) chenges few paramters structures for Pspec run
-    spw = []
-    spw.append(tuple(int(s) for s in 
-                     cfg['pspec_run']['spw_ranges'].strip("()").split(",")))
     
+    # (7) Prepare input params for PSpec run (converts yaml lists to tuples) 
+    spw = []
+    spw.append(tuple(int(s) 
+                for s in cfg['pspec_run']['spw_ranges'].strip("()").split(",")))
     cfg['pspec_run']['spw_ranges'] = spw
-
-    cfg['pspec_run']['bl_len_range'] = tuple(float(s) for s in cfg['pspec_run']['bl_len_range'].strip("()").split(","))
-
-    cfg['pspec_run']['bl_deg_range'] = tuple(float(s) for s in cfg['pspec_run']['bl_deg_range'].strip("()").split(","))
-
+    
+    for key in ['bl_len_range', 'bl_deg_range']:
+        cfg['pspec_run'][key] = tuple(float(s) 
+                          for s in cfg['pspec_run'][key].strip("()").split(","))
 
     # (8) Estimate power spectra
     tstart = time.time()
-
     pspecd = hp.pspecdata.pspec_run([uvd_cal,],
-                                    psc_out_inco,**cfg['pspec_run'])
+                                    psc_out_inco,
+                                    **cfg['pspec_run'])
 
     if coherent_avg:
         pspecd_avg = hp.pspecdata.pspec_run([uvd_avg,],
-                           psc_out_co,**cfg['pspec_run'])
+                                            psc_out_co, 
+                                            **cfg['pspec_run'])
 
     print("Pspec run took %2.1f sec" % (time.time() - tstart))
+    
