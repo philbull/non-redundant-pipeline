@@ -6,7 +6,7 @@ sim_spec:
     ntimes:             600
     integration_time:   40.
     start_time:         2458902.4
-    cat_name:           ../../pb_hera/catBC.txt
+    cat_name:           ../../pb_hera/catBC_nobright.txt
     apply_gains:        True
     apply_noise:        True
     ant_pert:           False
