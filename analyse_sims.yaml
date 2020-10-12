@@ -1,9 +1,11 @@
-    
+
 analysis:
     input_data:         calibration/viscatBC_g.uvh5
     output_data:        calibration/viscatBC_g_cal.uvh5
     input_truegain:     calibration/viscatBC.calfits
     coherent_avg:       True
+    replace_outlier:    True
+    threshold:          20.
 
 
 redcal:

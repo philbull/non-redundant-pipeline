@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.stats as scistats
 
 import pyuvdata.utils as uvutils
 from pyuvdata import UVData
@@ -6,7 +7,7 @@ import hera_pspec as hp
 import hera_cal as hc
 from hera_sim import io
 
-import copy, yaml, pickle
+import copy, yaml
 
 
 def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=False):
@@ -536,6 +537,111 @@ def load_config(config_file, cfg_default):
     return cfg
 
 
+def replace_gain_outlier(cal, threshold=20., inplace=False):
+    """
+    Replace gain outlier with nearest neighbour mean values
+    
+    Parameters
+    ----------
+    cal : dict of array_like
+        Output Dict from redcal which contains 2D array of complex gain solutions for each antenna 
+        (and polarization).
+
+    threshold: float
+            above threshold values will be replaced by mean of the nearest neighbours
+    
+    inplace : bool, optional
+        Whether update the input gain dictionary, or 
+        operate on a copy. Default: False (operate on a copy).
+    
+    Returns
+    -------
+    outcal : dict of array_like
+        Output cal dictionary, now with gain solution outliers replaced.
+    """
+    
+    if inplace:
+        outcal = cal
+    else:
+        outcal = dict(cal)
+        
+    Nant = len(cal['g_omnical'])
+    
+    for i in range(Nant):
+        
+        gain = cal['g_omnical'][i,'Jee']
+        
+        for row in range(gain.shape[0]): # loop over frequency channels
+            for j in range(2): #2 real and imag
+                if j==0:
+                    data = gain[row,:].real
+                else:
+                    data = gain[row,:].imag
+              
+                #calculate med and mad along time axis
+                med = np.median(data)
+                mad = scistats.median_absolute_deviation(data)
+                
+                #find bad indices based on med and mad
+                bad_idx = np.where( np.abs((data-med)/mad) > threshold )
+
+                #loop over bad index, find left and right neighbours and replace with mean of them
+                for idx in bad_idx[0]:
+    
+                    lidx = idx - 1
+                    while lidx in bad_idx[0]:
+                        lidx = lidx - 1
+        
+                    ridx = idx + 1
+                    while ridx in bad_idx[0]:
+                        ridx = ridx + 1
+
+                    if lidx < 0:
+                        lidx = ridx
+
+                    if ridx == len(data):
+                        ridx = lidx
+                
+                    gain[row,idx] = (gain[row,lidx] + gain[row,ridx]) / 2.
+           
+        for column in range(gain.shape[1]): #loop over time samples
+            for j in range(2): #2 real and imag
+                if j==0:
+                    data = gain[:,column].real
+                else:
+                    data = gain[:,column].imag
+                
+                #calculate med and mad along frequency axis
+                med = np.median(data)
+                mad = scistats.median_absolute_deviation(data)
+            
+                #find bad indices based on med and mad
+                bad_idx = np.where( np.abs((data-med)/mad) > threshold )
+
+                #loop over bad index, find left and right neighbours and replace with mean of them
+                for idx in bad_idx[0]:
+    
+                    lidx = idx - 1
+                    while lidx in bad_idx[0]:
+                        lidx = lidx - 1
+        
+                    ridx = idx + 1
+                    while ridx in bad_idx[0]:
+                        ridx = ridx + 1
+
+                    if lidx < 0:
+                        lidx = ridx
+
+                    if ridx == len(data):
+                        ridx = lidx
+
+                    gain[idx,column] = (gain[lidx,column] + gain[ridx,column]) / 2.
+
+        #replace or write the outlier modified gains
+        outcal['g_omnical'][i,'Jee'] = gain
+        
+    return outcal
+
 def remove_file_ext(dfile):
     """
     Remove the last file extension of a filename.
@@ -545,5 +651,3 @@ def remove_file_ext(dfile):
         return (dfile[:-(len(fext)+1)])
     else:
         return dfile
-
-

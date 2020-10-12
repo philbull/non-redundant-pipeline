@@ -19,7 +19,9 @@ def default_cfg():
     Set parameter defaults.
     """
     # General analysis parameters
-    cfg_analysis = dict( coherent_avg=True )
+    cfg_analysis = dict( coherent_avg=True,
+                         replace_outlier=False,
+                         threshold=10.)
     
     # Redcal parameters
     cfg_redcal = dict( firstcal_ext='.first.calfits', 
@@ -103,6 +105,11 @@ if __name__ == '__main__':
     tstart = time.time()
     cal = hc.redcal.redcal_run(input_data, **cfg['redcal'])
     print("Red calibration run took %2.1f sec" % (time.time() - tstart))    
+
+    #replace outlier
+    if cfg['analysis']['replace_outlier']:
+        threshold = cfg['analysis']['threshold']
+        cal = utils.replace_gain_outlier(cal, threshold=threshold, inplace=True)
     
     #save the cal dict
     np.savez(input_ext+'_cal_dict.npz',**cal) 
