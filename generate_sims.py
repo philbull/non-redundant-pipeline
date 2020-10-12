@@ -13,6 +13,9 @@ from pyuvdata import UVData
 from hera_sim.visibilities import VisCPU, conversions
 from hera_sim.beams import PolyBeam, PerturbedPolyBeam
 
+# Default setting for use_mpi (can be overridden by commandline arg)
+USE_MPI_DEFAULT = True
+
 try:
     import healpy
     import healvis
@@ -40,9 +43,11 @@ def default_cfg():
                      ant_pert=False,
                      seed=None,
                      ant_pert_sigma=0.0,
+                     use_legacy_array=False,
                      hex_spec=(3,4), 
                      hex_ants_per_row=None, 
-                     hex_ant_sep=14.6 )
+                     hex_ant_sep=14.6,
+                     use_ptsrc=True )
                         
     # Diffuse model specification
     cfg_diffuse = dict( use_diffuse=False,
@@ -98,15 +103,23 @@ if __name__ == '__main__':
     # Run simulations (MPI-enabled)    
 
     # Get config file name from args
+    use_mpi = USE_MPI_DEFAULT
     if len(sys.argv) > 1:
         config_file = str(sys.argv[1])
+        if len(sys.argv) > 2:
+            use_mpi = bool(sys.argv[2])
+            print("use_mpi:", use_mpi)
     else:
-        print("Usage: analyse_sims.py config_file")
+        print("Usage: analyse_sims.py config_file [use_mpi]")
         sys.exit(1)
     
     # Begin MPI
-    comm = MPI.COMM_WORLD
-    myid = comm.Get_rank()
+    if use_mpi:
+        comm = MPI.COMM_WORLD
+        myid = comm.Get_rank()
+    else:
+        comm = None
+        myid = 0
     
     # Load config file
     cfg = utils.load_config(config_file, default_cfg())
@@ -118,15 +131,17 @@ if __name__ == '__main__':
     cfg_noise = cfg['sim_noise']
     
     # Construct array layout to simulate
-    #ants = utils.build_hex_array(hex_spec=cfg_spec['hex_spec'], 
-    #                             ants_per_row=cfg_spec['hex_ants_per_row'], 
-    #                             d=cfg_spec['hex_ant_sep'])
-
-    ants = utils.build_array()
+    if cfg_spec['use_legacy_array']:
+        # This is the deprecated legacy function 
+        ants = utils.build_array()
+    else:
+        ants = utils.build_hex_array(hex_spec=cfg_spec['hex_spec'], 
+                                     ants_per_row=cfg_spec['hex_ants_per_row'], 
+                                     d=cfg_spec['hex_ant_sep'])
     Nant = len(ants)
     ant_index = list(ants.keys())
 
-    #perturb antenna position
+    # Perturb antenna positions
     if cfg_spec['ant_pert']:
         np.random.seed(cfg_spec['seed'])
         for i in range(Nant):
@@ -139,9 +154,12 @@ if __name__ == '__main__':
     # Create frequency array
     freq0 = 100e6
     freqs = np.unique(uvd.freq_array)
-    ra_dec, flux = utils.load_ptsrc_catalog(cfg_spec['cat_name'], 
-                                            freq0=freq0, freqs=freqs, 
-                                            usecols=(0,1,2,3))
+    
+    # Load point source catalogue
+    if cfg_spec['use_ptsrc']:
+        ra_dec, flux = utils.load_ptsrc_catalog(cfg_spec['cat_name'], 
+                                                freq0=freq0, freqs=freqs, 
+                                                usecols=(0,1,2,3))
 
     # Build list of beams using best-fit coefficients for Chebyshev polynomials
     if cfg_beam['perturb']:
@@ -205,36 +223,40 @@ if __name__ == '__main__':
                                        **cfg_beam) for i in range(Nant)]
     else:
         beam_list = [PolyBeam(**cfg_beam) for i in range(Nant)]
-
-
-    # Create VisCPU visibility simulator object (MPI-enabled)
-    simulator = VisCPU(
-        uvdata=uvd,
-        beams=beam_list,
-        beam_ids=ant_index,
-        sky_freqs=freqs,
-        point_source_pos=ra_dec,
-        point_source_flux=flux,
-        precision=2,
-        use_pixel_beams=False, # Do not use pixel beams
-        bm_pix=10,
-        mpi_comm=comm
-    )
-        
-    # Run simulation
-    tstart = time.time()
-    simulator.simulate()
-    print("Simulation took %2.1f sec" % (time.time() - tstart))
     
-    if myid != 0:
-        # Wait for root worker to finish IO before ending all other worker procs
-        comm.Barrier()
-        sys.exit(0)
-
-    # Write simulated data to file
-    uvd = simulator.uvdata
-    if cfg_out['datafile_true'] != '':
-        uvd.write_uvh5(cfg_out['datafile_true'], clobber=cfg_out['clobber'])
+    # Use VisCPU to create point source sim, or load a template file with 
+    # correct data structures instead
+    if cfg_spec['use_ptsrc']:
+        
+        # Create VisCPU visibility simulator object (MPI-enabled)
+        simulator = VisCPU(
+            uvdata=uvd,
+            beams=beam_list,
+            beam_ids=ant_index,
+            sky_freqs=freqs,
+            point_source_pos=ra_dec,
+            point_source_flux=flux,
+            precision=2,
+            use_pixel_beams=False, # Do not use pixel beams
+            bm_pix=10,
+            mpi_comm=comm
+        )
+            
+        # Run simulation
+        tstart = time.time()
+        simulator.simulate()
+        print("Simulation took %2.1f sec" % (time.time() - tstart))
+    
+        if myid != 0:
+            # Wait for root worker to finish IO before ending all other worker procs
+            comm.Barrier()
+            sys.exit(0)
+    
+        # Write simulated data to file
+        uvd = simulator.uvdata
+        if cfg_out['datafile_true'] != '':
+            uvd.write_uvh5(cfg_out['datafile_true'], clobber=cfg_out['clobber'])
+    
     
     # Simulate diffuse model using healvis (multi-threaded)
     if cfg_diffuse['use_diffuse']:
@@ -242,7 +264,7 @@ if __name__ == '__main__':
         # Create healvis baseline spec
         healvis_bls = []
         for i in range(len(ants)):
-            for j in range(i+1, len(ants)):
+            for j in range(i, len(ants)):
                 _bl = healvis.observatory.Baseline(ants[i], ants[j], i, j)
                 healvis_bls.append(_bl)
 
@@ -273,6 +295,7 @@ if __name__ == '__main__':
         # Check that ordering of healvis output matches existing uvd object
         antpairs_hvs = [(healvis_bls[i].ant1, healvis_bls[i].ant2) for i in _bls]
         antpairs_uvd = [uvd.baseline_to_antnums(_b) for _b in uvd.baseline_array]
+        
         assert antpairs_hvs == antpairs_uvd, \
                                  "healvis 'bls' array does not match the " \
                                  "ordering of existing UVData.baseline_array"
@@ -325,6 +348,7 @@ if __name__ == '__main__':
                        clobber=cfg_out['clobber'])
     
     # Sync with other workers and finalise
-    comm.Barrier()
+    if use_mpi:
+        comm.Barrier()
     sys.exit(0)
     
