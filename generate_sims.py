@@ -54,6 +54,7 @@ def default_cfg():
                         nside=64,
                         obs_latitude=-30.7215277777,
                         obs_longitude = 21.4283055554,
+                        obs_height = 1073,
                         beam_pol='XX',
                         nprocs=1 )
     
@@ -276,6 +277,7 @@ if __name__ == '__main__':
         fov = 360. # deg
         obs = healvis.observatory.Observatory(cfg_diffuse['obs_latitude'], 
                                               cfg_diffuse['obs_longitude'], 
+                                              cfg_diffuse['obs_height'],
                                               array=healvis_bls, 
                                               freqs=freqs)
         obs.set_pointings(times)
