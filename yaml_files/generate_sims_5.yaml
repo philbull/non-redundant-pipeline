@@ -59,3 +59,14 @@ sim_noise:
     nsamp:              1.0
     seed:               10
     noise_file:         ../calibration.nonoise/viscatall_5.uvh5
+
+sim_diffuse:
+    beam_pol:           XX
+    diffuse_model:      GSM
+    eor_random_seed:    42
+    nprocs:             1
+    nside:              64
+    obs_height:         1073
+    obs_latitude:       -30.7215277777
+    obs_longitude:      21.4283055554
+    use_diffuse:        false
