@@ -66,7 +66,8 @@ def default_cfg():
                           interleave_times=False,
                           exclude_auto_bls=True,
                           exclude_cross_bls=False,
-                          exclude_permutations=True )
+                          exclude_permutations=True,
+                          store_window=False)
     
     # Combine into single dict
     cfg = {
@@ -164,7 +165,7 @@ if __name__ == '__main__':
 
     if coherent_avg:
         pspecd_avg = hp.pspecdata.pspec_run([uvd_avg,],
-                                            psc_out_co, 
+                                            psc_out_co,
                                             **cfg['pspec_run'])
 
     print("Pspec run took %2.1f sec" % (time.time() - tstart))

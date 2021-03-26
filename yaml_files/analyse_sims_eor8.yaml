@@ -1,0 +1,62 @@
+
+analysis:
+    input_data:         calibration_points/viscatBC_outlier2_1.1_n.uvh5
+    output_data:        calibration_eor1/viscatBC_outlier2_1.1_g_cal.uvh5
+    input_truegain:     calibration_diffuse1/viscatBC_outlier2_1.1_g_new.calfits
+    coherent_avg:       True
+    replace_outlier:    True
+    threshold:          20.
+
+
+redcal:
+    filetype:           uvh5
+    firstcal_ext:       .first.calfits
+    omnical_ext:        .omni.calfits
+    omnivis_ext:        .omni_vis.uvh5 
+    meta_ext:           .redcal_meta.hdf5 
+    iter0_prefix:       ""
+    outdir:             
+    ant_metrics_file:   
+    clobber:            True 
+    nInt_to_load:       
+    pol_mode:           1pol 
+    bl_error_tol:       1.0
+    ex_ants:            [] 
+    ant_z_thresh:       4. 
+    max_rerun:          100 
+    solar_horizon:      0.0 
+    flag_nchan_low:     0 
+    flag_nchan_high:    0 
+    fc_conv_crit:       1.e-7 
+    fc_maxiter:         50000 
+    oc_conv_crit:       1.e-12 
+    oc_maxiter:         50000 
+    check_every:        10 
+    check_after:        50 
+    gain:               0.4 
+    add_to_history:     ""
+    verbose:            True 
+    min_bl_cut:         10.
+    max_bl_cut:         40.
+
+
+pspec:
+    incoherent_ext:     .inco_psc.hdf5
+    coherent_ext:       .co_psc.hdf5
+
+
+pspec_run:
+    input_data_weight:  'identity'
+    norm:               'I'
+    spw_ranges:         (0,120)
+    rephase_to_dset:    0
+    taper:              'blackman-harris'
+    verbose:            True
+    overwrite:          True
+    bl_len_range:       (0., 100.)
+    bl_deg_range:       (0.0, 360.0)
+    interleave_times:   True
+    exclude_auto_bls:   False
+    exclude_cross_bls:  False
+    exclude_permutations: False
+    store_window:         False
