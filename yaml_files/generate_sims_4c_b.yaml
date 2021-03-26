@@ -14,7 +14,7 @@ sim_spec:
     ant_pert_sigma:     0.05
     use_legacy_array:   True
     hex_spec:           [3, 4]
-    hex_ants_per_row:   None 
+    hex_ants_per_row:   null 
     hex_ant_sep:        14.6
 
 sim_output:
@@ -42,7 +42,7 @@ sim_beam:
     ystretch_mean:        0.98
     ystretch_sigma:       0.02
     xystretch_same:       False
-    xystretch_dist:       None
+    xystretch_dist:       null
     outlier_ant_id:       [2]
     outlier_xstretch:     [1.1]
     rotation_dist:        Gaussian
@@ -59,3 +59,14 @@ sim_noise:
     nsamp:              1.0
     seed:               10
     noise_file:         ../calibration.nonoise/viscatall_4c_b.uvh5
+
+sim_diffuse:
+    beam_pol:           XX
+    diffuse_model:      GSM
+    eor_random_seed:    42
+    nprocs:             1
+    nside:              64
+    obs_height:         1073
+    obs_latitude:       -30.7215277777
+    obs_longitude:      21.4283055554
+    use_diffuse:        false

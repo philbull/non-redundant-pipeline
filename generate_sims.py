@@ -54,7 +54,10 @@ def default_cfg():
                         nside=64,
                         obs_latitude=-30.7215277777,
                         obs_longitude = 21.4283055554,
+                        obs_height = 1073,
                         beam_pol='XX',
+                        diffuse_model='GSM',
+                        eor_random_seed=42,
                         nprocs=1 )
     
     # Beam model parameters
@@ -276,6 +279,7 @@ if __name__ == '__main__':
         fov = 360. # deg
         obs = healvis.observatory.Observatory(cfg_diffuse['obs_latitude'], 
                                               cfg_diffuse['obs_longitude'], 
+                                              cfg_diffuse['obs_height'],
                                               array=healvis_bls, 
                                               freqs=freqs)
         obs.set_pointings(times)
@@ -283,6 +287,18 @@ if __name__ == '__main__':
         obs.set_beam(beam_list) # beam list
         
         # Create GSM sky model
+        if cfg_diffuse["diffuse_model"] == "EOR":
+            print("Using EOR diffuse model")
+            gsm = healvis.sky_model.construct_skymodel('flat_spec', freqs=freqs, Nside=cfg_diffuse['nside'], 
+                                                    ref_chan=0, sigma=1e-3, seed=cfg_diffuse['eor_random_seed'])
+        elif cfg_diffuse["diffuse_model"] == "GSM":
+            print("Using GSM diffuse model")
+            gsm = healvis.sky_model.construct_skymodel('gsm', freqs=freqs,
+                                                   ref_chan=0,
+                                                   Nside=cfg_diffuse['nside'])
+        else:
+            raise ValueError("Invalid diffuse model: "+cfg_diffuse["diffuse_model"])
+
         gsm = healvis.sky_model.construct_skymodel('gsm', freqs=freqs, 
                                                    ref_chan=0,
                                                    Nside=cfg_diffuse['nside'])
