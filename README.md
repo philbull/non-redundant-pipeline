@@ -14,10 +14,10 @@ Then run `sh run_non`. This will create many temporary batch scripts and yaml fi
 
 The ordering of runs is important.
 1. Run simulations for catalog catall.txt first, because this creates the files that will be used to determine the noise to add to simulations using other catalogues.
-	a.  Run all the point source simulations (NR_WHICH="points" in `set_run`) first, and wait until they are finished.
-	b.  Then run the diffuse simulations (NR_WHICH="diffuse" in `set_run`). 
+	* Run all the point source simulations (NR_WHICH="points" in `set_run`) first, and wait til they are finished.
+	* Then run the diffuse simulations (NR_WHICH="diffuse" in `set_run`). 
 2. Run the other catalogues.
 
-Because of the way things are parallelized, the point source and diffuse simulations cannot be done in a single ILIFU job. That is the reason for the separation of points a. and b. The diffuse simulation will load data created by the point source simulation.
+Because of the way things are parallelized, the point source and diffuse simulations cannot be done in a single ILIFU job. That is the reason for the separation of points a. and b. The diffuse simulation will load data created by the point source simulation. Run the point source sims, then change NR_WHICH to diffuse, and run the diffuse sims.
 
 The output will be in the place you specified as NR_OUTPUT_ROOT in `set_run`.
