@@ -113,7 +113,11 @@ if __name__ == '__main__':
         cal = utils.replace_gain_outlier(cal, threshold=threshold, inplace=True)
     
     #save the cal dict
-    np.savez(input_ext+'_cal_dict.npz',**cal) 
+    if cfg['analysis']['cal_as_hickle']:
+        import hickle
+        hickle.dump(cal, input_ext+'_cal_dict.npz',**cal)
+    else:
+        np.savez(input_ext+'_cal_dict.npz',**cal) 
 
     # (2) Load UVData
     uvd_in = UVData()

@@ -1,0 +1,113 @@
+#!/bin/sh
+
+# Run catall first, to generate noise files
+
+sim_diffuse() {
+
+  yaml=$1
+  num=$2
+
+cat <<END > non_$2.sh
+#!/bin/sh
+#SBATCH --job-name='nonredundant'
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=$NR_NP
+#SBATCH --mem=$NR_MEM
+#SBATCH --output=nr-%j.log
+#SBATCH --time=$NR_SIM_TIME_DIFFUSE
+
+#module load openmpi
+
+echo "====== Start $yaml" \`date\`
+
+echo "---------------- Diffuse sim" $num
+$NR_PYTHON print_params.py g_$num.yaml
+time $NR_PYTHON generate_sims.py g_$num.yaml
+echo "---------------- Analyse"
+time $NR_PYTHON analyse_sims.py a_$num.yaml
+echo "====== End $yaml" \`date\`
+
+END
+}
+
+sim_points() {
+
+  yaml=$1
+  num=$2
+
+cat <<END > non_$2.sh
+#!/bin/sh
+#SBATCH --job-name='nonredundant'
+#SBATCH --ntasks=$NR_MPI_NP
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=$NR_MEM
+#SBATCH --output=nr-%j.log
+#SBATCH --time=$NR_SIM_TIME_POINTS
+
+
+#module load openmpi
+
+
+echo "====== Start $yaml" \`date\`
+
+echo "---------------- Generate points sim only" $num
+$NR_PYTHON print_params.py g_$num.yaml
+time mpiexec -n $NR_MPI_NP $NR_PYTHON generate_sims.py g_$num.yaml
+echo "---------------- Analyse"
+time $NR_PYTHON analyse_sims.py a_$num.yaml
+echo "====== End $yaml" \`date\`
+
+END
+}
+
+. ./set_run
+
+if [ -r $NR_CATALOG ]
+then 
+  export CATALOG=`echo $NR_CATALOG | sed s/.txt//`
+else
+  echo "Fatal: $NR_CATALOG doesn't exist"
+  exit 1
+ fi
+ 
+# Do it
+
+if [ -d old_logs ]
+then
+  echo "Moving old logs to old_logs/"
+  mv *.log old_logs
+fi
+output_path="$NR_OUTPUT_ROOT/$CATALOG/calibration_$NR_WHICH"
+echo "Output to $output_path"
+if [ -d $output_path ]
+then
+  if [ "$NR_CLEAN_OUTPUT" = "True" ]
+  then 
+    echo "Deleting previous output"
+    rm -f $output_path/*
+  fi
+else
+  mkdir $output_path
+fi
+  
+
+i=0
+for yaml in yaml_files/generate*
+do
+  # Check change_file has the right params before running
+  $NR_PYTHON setup_yaml_files.py $yaml yaml_files/analyse_sims.yaml
+  mv g.yaml g_${i}.yaml
+  mv g_orig.yaml g_orig_${i}.yaml 
+  mv a.yaml a_${i}.yaml
+  mv a_orig.yaml a_orig_${i}.yaml
+
+  if [ "$NR_WHICH" = "points" ]
+  then sim_points $yaml $i 
+  else sim_diffuse $yaml $i
+  fi
+
+  echo non_${i}.sh $yaml
+  sbatch non_${i}.sh
+  i=$((i+1))  
+done
+
