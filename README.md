@@ -18,6 +18,6 @@ The ordering of runs is important.
 	* Then run the diffuse simulations (NR_WHICH="diffuse" in `set_run`). 
 2. Run the other catalogues.
 
-Because of the way things are parallelized, the point source and diffuse simulations cannot be done in a single ILIFU job. That is the reason for the separation of points a. and b. The diffuse simulation will load data created by the point source simulation. Run the point source sims, then change NR_WHICH to diffuse, and run the diffuse sims.
+Because of the way things are parallelized, the point source and diffuse simulations cannot be done in a single ILIFU job. That is the reason for the separation. The diffuse simulation will load data created by the point source simulation. Run the point source sims, then change NR_WHICH to diffuse, and run the diffuse sims.
 
 The output will be in the place you specified as NR_OUTPUT_ROOT in `set_run`.
