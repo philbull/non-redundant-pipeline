@@ -2,8 +2,29 @@
 """
 Generate simulations of a slightly non-redundant array using hera_sim.
 """
+
+import os, sys, time
 from mpi4py import MPI
+from resource import getrusage, RUSAGE_SELF, RUSAGE_CHILDREN
 import numpy as np
+
+comm = MPI.COMM_WORLD
+myid = comm.Get_rank()
+import yaml
+with open(sys.argv[1]) as f:
+    cfg_in = yaml.load(f, Loader=yaml.FullLoader)
+
+# Fatal if we want a noise file and it doesn't exist. Check this now.
+if cfg_in["sim_noise"]["noise_file"] is not None and not os.path.exists(cfg_in["sim_noise"]["noise_file"]):
+    raise RuntimeError("Noise file not found. "+cfg_in["sim_noise"]["noise_file"])
+
+# Setup astropy cache for this process before anything else done
+
+cache = "/scratch/users/hgarsden/"+cfg_in["sim_spec"]["cat_name"][:-4]+"/caches/"+sys.argv[1][:-5]+"/"+str(myid)
+if not os.path.exists(cache):
+    os.makedirs(cache+"/astropy")
+print("Cache", cache)
+os.environ["XDG_CACHE_HOME"] = cache
 
 import uvtools
 import hera_cal as hc
@@ -13,17 +34,7 @@ from pyuvdata import UVData
 from hera_sim.visibilities import VisCPU, conversions
 from hera_sim.beams import PolyBeam, PerturbedPolyBeam
 
-# Default setting for use_mpi (can be overridden by commandline arg)
-USE_MPI_DEFAULT = True
-
-try:
-    import healpy
-    import healvis
-except:
-    print("Unable to import healpy and/or healvis; diffuse mode unavailable")
-
 import utils
-import time, copy, sys
 
 
 def default_cfg():
@@ -43,11 +54,9 @@ def default_cfg():
                      ant_pert=False,
                      seed=None,
                      ant_pert_sigma=0.0,
-                     use_legacy_array=False,
                      hex_spec=(3,4), 
                      hex_ants_per_row=None, 
-                     hex_ant_sep=14.6,
-                     use_ptsrc=True )
+                     hex_ant_sep=14.6 )
                         
     # Diffuse model specification
     cfg_diffuse = dict( use_diffuse=False,
@@ -56,8 +65,6 @@ def default_cfg():
                         obs_longitude = 21.4283055554,
                         obs_height = 1073,
                         beam_pol='XX',
-                        diffuse_model='GSM',
-                        eor_random_seed=42,
                         nprocs=1 )
     
     # Beam model parameters
@@ -106,23 +113,15 @@ if __name__ == '__main__':
     # Run simulations (MPI-enabled)    
 
     # Get config file name from args
-    use_mpi = USE_MPI_DEFAULT
     if len(sys.argv) > 1:
         config_file = str(sys.argv[1])
-        if len(sys.argv) > 2:
-            use_mpi = bool(sys.argv[2])
-            print("use_mpi:", use_mpi)
     else:
-        print("Usage: analyse_sims.py config_file [use_mpi]")
+        print("Usage: generate_sims.py config_file")
         sys.exit(1)
     
     # Begin MPI
-    if use_mpi:
-        comm = MPI.COMM_WORLD
-        myid = comm.Get_rank()
-    else:
-        comm = None
-        myid = 0
+    comm = MPI.COMM_WORLD
+    myid = comm.Get_rank()
     
     # Load config file
     cfg = utils.load_config(config_file, default_cfg())
@@ -134,17 +133,17 @@ if __name__ == '__main__':
     cfg_noise = cfg['sim_noise']
     
     # Construct array layout to simulate
-    if cfg_spec['use_legacy_array']:
-        # This is the deprecated legacy function 
+    if len(cfg_spec['hex_spec']) == 0:
         ants = utils.build_array()
+        print("Using build_array not hex_spec")
     else:
         ants = utils.build_hex_array(hex_spec=cfg_spec['hex_spec'], 
-                                     ants_per_row=cfg_spec['hex_ants_per_row'], 
-                                     d=cfg_spec['hex_ant_sep'])
+                                 ants_per_row=cfg_spec['hex_ants_per_row'], 
+                                 d=cfg_spec['hex_ant_sep'])
     Nant = len(ants)
     ant_index = list(ants.keys())
 
-    # Perturb antenna positions
+    #perturb antenna position
     if cfg_spec['ant_pert']:
         np.random.seed(cfg_spec['seed'])
         for i in range(Nant):
@@ -155,14 +154,18 @@ if __name__ == '__main__':
     uvd = utils.empty_uvdata(ants=ants, **cfg_spec)
 
     # Create frequency array
+    print("Loading catalogue")
     freq0 = 100e6
     freqs = np.unique(uvd.freq_array)
-    
-    # Load point source catalogue
-    if cfg_spec['use_ptsrc']:
-        ra_dec, flux = utils.load_ptsrc_catalog(cfg_spec['cat_name'], 
-                                                freq0=freq0, freqs=freqs, 
-                                                usecols=(0,1,2,3))
+    ra_dec, flux = utils.load_ptsrc_catalog(cfg_spec['cat_name'], 
+                                            freq0=freq0, freqs=freqs, 
+                                            usecols=(0,1,2,3))
+    if cfg_spec["dummy_source"]:
+        ra_dec = np.deg2rad([[125.7,   -30.72]])
+        flux = np.array([ 1e-3 ])
+        print("Using 1 dummy source", ra_dec, flux)
+
+    print("Done loading")
 
     # Build list of beams using best-fit coefficients for Chebyshev polynomials
     if cfg_beam['perturb']:
@@ -217,52 +220,73 @@ if __name__ == '__main__':
             raise ValueError("rotation_dist '%s' not recognized" \
                              % cfg_beam['rotation_dist'])
 
+   
         # Perturb sidelobe and other perturbation
         beam_list = [PerturbedPolyBeam(np.random.randn(cfg_beam['nmodes']),
                                        mainlobe_scale= mainlobe_scale[i],
                                        xstretch=xstretch[i], 
                                        ystretch=ystretch[i],
                                        rotation=rotation[i],
+                                       perturb_zeropoint=0.,
+                                       freq_perturb_coeffs=np.random.randn(cfg_beam['nmodes']),
+                                       freq_perturb_scale=0.1,
                                        **cfg_beam) for i in range(Nant)]
     else:
         beam_list = [PolyBeam(**cfg_beam) for i in range(Nant)]
+
+    # Dump beam_parameters
+    beams_file = os.path.basename(cfg_in["orig_yaml"])[:-5]+"_beams.txt"
+    with open(beams_file, "w") as bf:
+        for i, beam in enumerate(beam_list):
+            params = beam.serialize()
+            bf.write("Beam "+str(i)+" =========================================\n")
+            for key in params.keys():
+                bf.write(key+": "+str(params[key])+"\n")
     
-    # Use VisCPU to create point source sim, or load a template file with 
-    # correct data structures instead
-    if cfg_spec['use_ptsrc']:
-        
-        # Create VisCPU visibility simulator object (MPI-enabled)
-        simulator = VisCPU(
-            uvdata=uvd,
-            beams=beam_list,
-            beam_ids=ant_index,
-            sky_freqs=freqs,
-            point_source_pos=ra_dec,
-            point_source_flux=flux,
-            precision=2,
-            use_pixel_beams=False, # Do not use pixel beams
-            bm_pix=10,
-            mpi_comm=comm
-        )
-            
+    # Create VisCPU visibility simulator object (MPI-enabled)
+    simulator = VisCPU(
+        uvdata=uvd,
+        beams=beam_list,
+        beam_ids=ant_index,
+        sky_freqs=freqs,
+        point_source_pos=ra_dec,
+        point_source_flux=flux,
+        precision=2,
+        use_pixel_beams=False, # Do not use pixel beams
+        bm_pix=10,
+        mpi_comm=comm,
+        az_za_corrections=cfg_spec["az_za_corrections"]
+    )
+    
+    if cfg_spec["load_points_sim"] is None:
         # Run simulation
+        print("Starting simulation")
         tstart = time.time()
         simulator.simulate()
         print("Simulation took %2.1f sec" % (time.time() - tstart))
-    
-        if myid != 0:
-            # Wait for root worker to finish IO before ending all other worker procs
-            comm.Barrier()
-            sys.exit(0)
-    
+
+    if myid != 0:
+        # Wait for root worker to finish IO before ending all other worker procs
+        comm.Barrier()
+        sys.exit(0)
+
+    if cfg_spec["load_points_sim"] is not None:
+        print("Loading points sim", cfg_spec["load_points_sim"])
+        uvd.read_uvh5(cfg_spec["load_points_sim"])
+    else:
         # Write simulated data to file
         uvd = simulator.uvdata
         if cfg_out['datafile_true'] != '':
             uvd.write_uvh5(cfg_out['datafile_true'], clobber=cfg_out['clobber'])
     
-    
     # Simulate diffuse model using healvis (multi-threaded)
     if cfg_diffuse['use_diffuse']:
+        try:
+            import healpy
+            import healvis
+        except:
+           raise RuntimeError("Unable to import healpy and/or healvis; diffuse mode unavailable")
+
         
         # Create healvis baseline spec
         healvis_bls = []
@@ -288,30 +312,22 @@ if __name__ == '__main__':
         
         # Create GSM sky model
         if cfg_diffuse["diffuse_model"] == "EOR":
+            gsm = healvis.sky_model.construct_skymodel("flat_spec", freqs=freqs, Nside=cfg_diffuse['nside'], ref_chan=0, sigma=1e-3)
             print("Using EOR diffuse model")
-            gsm = healvis.sky_model.construct_skymodel('flat_spec', freqs=freqs, Nside=cfg_diffuse['nside'], 
-                                                    ref_chan=0, sigma=1e-3, seed=cfg_diffuse['eor_random_seed'])
-        elif cfg_diffuse["diffuse_model"] == "GSM":
-            print("Using GSM diffuse model")
-            gsm = healvis.sky_model.construct_skymodel('gsm', freqs=freqs,
+        else: 
+            gsm = healvis.sky_model.construct_skymodel('gsm', freqs=freqs, 
                                                    ref_chan=0,
                                                    Nside=cfg_diffuse['nside'])
-        else:
-            raise ValueError("Invalid diffuse model: "+cfg_diffuse["diffuse_model"])
-
-        gsm = healvis.sky_model.construct_skymodel('gsm', freqs=freqs, 
-                                                   ref_chan=0,
-                                                   Nside=cfg_diffuse['nside'])
-
         # Compute visibilities
+        start = time.time()
         gsm_vis, _times, _bls = obs.make_visibilities(gsm,
                                               beam_pol=cfg_diffuse['beam_pol'], 
                                               Nprocs=cfg_diffuse['nprocs'])
+        print("healvis sim time", time.time()-start)
         
         # Check that ordering of healvis output matches existing uvd object
         antpairs_hvs = [(healvis_bls[i].ant1, healvis_bls[i].ant2) for i in _bls]
         antpairs_uvd = [uvd.baseline_to_antnums(_b) for _b in uvd.baseline_array]
-        
         assert antpairs_hvs == antpairs_uvd, \
                                  "healvis 'bls' array does not match the " \
                                  "ordering of existing UVData.baseline_array"
@@ -320,7 +336,8 @@ if __name__ == '__main__':
                                  "ordering of existing UVData.time_array"
         
         # Add diffuse data to UVData object
-        uvd.data_array[:,:,:,0] += gsm_vis
+        if cfg_diffuse["diffuse_model"] == "EOR": uvd.data_array[:,:,:,0] = gsm_vis
+        else: uvd.data_array[:,:,:,0] += gsm_vis
         
         # Output diffuse-added data if requested
         if cfg_out['datafile_post_diffuse'] != '':
@@ -329,9 +346,12 @@ if __name__ == '__main__':
     
     # Add noise
     if cfg_spec['apply_noise']:
+        # If have no noise file it will calculate noise from uvd.
+        # generate with the whole catalog and diffuse then noise file is saved for later 
         uvd = utils.add_noise_from_autos(uvd, input_noise=cfg_noise['noise_file'], 
                                          nsamp=cfg_noise['nsamp'], 
                                          seed=cfg_noise['seed'], inplace=True)
+        
         if cfg_out['datafile_post_noise'] != '':
             uvd.write_uvh5(cfg_out['datafile_post_noise'], 
                            clobber=cfg_out['clobber'])
@@ -364,7 +384,14 @@ if __name__ == '__main__':
                        clobber=cfg_out['clobber'])
     
     # Sync with other workers and finalise
-    if use_mpi:
-        comm.Barrier()
+
+
+    comm.Barrier()
+
+    usage1 = getrusage(RUSAGE_SELF)
+    usage2 = getrusage(RUSAGE_CHILDREN)
+    print("MEM", usage1.ru_maxrss/1000.0/1000, "GB")
+    print("MEM CHILD", usage2.ru_maxrss/1000.0/1000, "GB")
+
     sys.exit(0)
     

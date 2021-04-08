@@ -4,10 +4,11 @@
 export NR_PYTHON="$HOME/non-redundant-pipeline/anaconda3_herasim/bin/python"
 export NR_CATALOG="catall.txt"    # A sub-directory in NR_OUTPUT_ROOT will be created for this catalog
 export NR_WHICH="points"
+export NR_CASES="yaml_files/generate_sims_4b_0.01.yaml" # yaml files corresponding to cases 
 export NR_MPI_NP=1                # Number of processes for MPI running generate_sims
 export NR_NP=32                   # Number of processes for multiprocessing running analyse_sims
 export NR_AZ_ZA_CORRECTIONS="astropy"
-export NR_APPLY_NOISE="True"      # True or False
+export NR_APPLY_NOISE="True"      # True or False, as for all boolean options.
 export NR_APPLY_GAINS="True"
 export NR_NSIDE=32                # For healvis
 export NR_NUM_TIMES=2
@@ -17,14 +18,15 @@ export NR_CAL_AS_HICKLE="False"
 export NR_SIM_TIME_POINTS="11:00:00"
 export NR_SIM_TIME_DIFFUSE="14:00:00"
 export NR_HEX_SPEC=""
-export NR_DIFFUSE_MODEL=GSM	      # EOR or GSM for healvis
+export NR_DIFFUSE_MODEL=GSM	      	# EOR or GSM for healvis
 export NR_OUTPUT_ROOT="/scratch/users/hgarsden"        # All the output goes here
-export NR_CLEAN_OUTPUT="True"     # Remove previous output for this NR_CATALOG and this NR_WHICH 
-export NR_DUMMY_SOURCE="False"	# Needed to generate uvh5 for subsequent replacing with EOR in diffuse sim
+export NR_CLEAN_OUTPUT="True"     	# Remove all previous output for this NR_CATALOG and this NR_WHICH (including all cases)
+export NR_DUMMY_SOURCE="False"		# Needed to generate uvh5 for subsequent replacing with EOR in diffuse sim
 
 echo NR_PYTHON $NR_PYTHON
 echo NR_CATALOG $NR_CATALOG
 echo NR_WHICH $NR_WHICH
+echo NR_CASES $NR_CASES
 echo NR_MPI_NP $NR_MPI_NP
 echo NR_NP $NR_NP
 echo NR_AZ_ZA_CORRECTIONS $NR_AZ_ZA_CORRECTIONS

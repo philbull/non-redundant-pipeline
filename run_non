@@ -92,7 +92,7 @@ fi
   
 
 i=0
-for yaml in yaml_files/generate*
+for yaml in $NR_CASES
 do
   # Check change_file has the right params before running
   $NR_PYTHON setup_yaml_files.py $yaml yaml_files/analyse_sims.yaml
