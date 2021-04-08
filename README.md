@@ -17,7 +17,7 @@ It is currently only usable on ILIFU (because the batch script headers are set f
 
 There is another layer of configuration on top of the yaml files. This is implemented using shell scripts and Python scripts.
 
-* Edit the file `set_run` which establishes this other layer of configuration. Set NR_WHICH to "points" or "diffuse". These cannot be done in parallel. Set NR_CASES to the yaml files corresponding to the cases you want to simulate. If you are not simulating *all* cases you may want NR_CLEAN="False", otherwise you will lose previous sims.
+* Edit the file `set_run` which establishes this other layer of configuration. Set NR_WHICH to "points" or "diffuse". These cannot be done in parallel. Set NR_CASES to the yaml files corresponding to the cases you want to simulate. If you are not simulating *all* cases you may want NR_CLEAN_OUTPUT="False", otherwise you will lose previous sims.
 
 * Place the desired catalog files (catall.txt, catBC.txt etc.) in the current directory and set NR_CATALOG in `set_run` to one of these. All catalogues cannot be run in parallel, they have to be done separately. The catalog file will be used to name sub-directories in the output data heirarchy.
 
