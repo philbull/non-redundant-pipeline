@@ -4,14 +4,17 @@ Generate simulations of a slightly non-redundant array using hera_sim.
 """
 from mpi4py import MPI
 import numpy as np
+from astropy.time import Time
+from astropy.coordinates import EarthLocation
 
 import uvtools
 import hera_cal as hc
 import pyuvdata
 from pyuvdata import UVData
 
-from hera_sim.visibilities import VisCPU, conversions
+from hera_sim.visibilities import VisCPU #, conversions
 from hera_sim.beams import PolyBeam, PerturbedPolyBeam
+from vis_cpu import conversions
 
 # Default setting for use_mpi (can be overridden by commandline arg)
 USE_MPI_DEFAULT = True
@@ -43,7 +46,6 @@ def default_cfg():
                      ant_pert=False,
                      seed=None,
                      ant_pert_sigma=0.0,
-                     use_legacy_array=False,
                      hex_spec=(3,4), 
                      hex_ants_per_row=None, 
                      hex_ant_sep=14.6,
@@ -62,7 +64,7 @@ def default_cfg():
     
     # Beam model parameters
     cfg_beam = dict( ref_freq=1.e8,
-                     spindex=-0.6975,
+                     spectral_index=-0.6975,
                      seed=None,
                      perturb_scale=0.0,
                      mainlobe_scale_mean=1.0,
@@ -134,11 +136,7 @@ if __name__ == '__main__':
     cfg_noise = cfg['sim_noise']
     
     # Construct array layout to simulate
-    if cfg_spec['use_legacy_array']:
-        # This is the deprecated legacy function 
-        ants = utils.build_array()
-    else:
-        ants = utils.build_hex_array(hex_spec=cfg_spec['hex_spec'], 
+    ants = utils.build_hex_array(hex_spec=cfg_spec['hex_spec'], 
                                      ants_per_row=cfg_spec['hex_ants_per_row'], 
                                      d=cfg_spec['hex_ant_sep'])
     Nant = len(ants)
@@ -163,7 +161,18 @@ if __name__ == '__main__':
         ra_dec, flux = utils.load_ptsrc_catalog(cfg_spec['cat_name'], 
                                                 freq0=freq0, freqs=freqs, 
                                                 usecols=(0,1,2,3))
+  
+    # Correct source locations so that vis_cpu uses the right frame
+    obstime = Time(cfg_spec['start_time'], format="jd", scale="utc")
 
+    location = EarthLocation.from_geodetic(lat=cfg_diffuse['obs_latitude'], lon=cfg_diffuse['obs_longitude'], 
+                                       height=cfg_diffuse['obs_height'])
+
+    ra_new, dec_new = conversions.equatorial_to_eci_coords(
+        ra_dec[:, 0], ra_dec[:, 1], obstime, location, unit="rad", frame="icrs")
+
+    #ra_dec = np.column_stack((ra_new, dec_new))
+  
     # Build list of beams using best-fit coefficients for Chebyshev polynomials
     if cfg_beam['perturb']:
 
@@ -225,7 +234,7 @@ if __name__ == '__main__':
                                        rotation=rotation[i],
                                        **cfg_beam) for i in range(Nant)]
     else:
-        beam_list = [PolyBeam(**cfg_beam) for i in range(Nant)]
+        beam_list = [PolyBeam(cfg_beam['beam_coeffs'], spectral_index=cfg_beam['spectral_index'], ref_freq=cfg_beam['ref_freq']) for i in range(Nant)]
     
     # Use VisCPU to create point source sim, or load a template file with 
     # correct data structures instead
@@ -261,7 +270,7 @@ if __name__ == '__main__':
             uvd.write_uvh5(cfg_out['datafile_true'], clobber=cfg_out['clobber'])
     
     
-    # Simulate diffuse model using healvis (multi-threaded)
+    # Simulate diffuse model using healvis (multi-threaded) (use https://github.com/hughbg/healvis.git)
     if cfg_diffuse['use_diffuse']:
         
         # Create healvis baseline spec
@@ -309,9 +318,9 @@ if __name__ == '__main__':
                                               Nprocs=cfg_diffuse['nprocs'])
         
         # Check that ordering of healvis output matches existing uvd object
-        antpairs_hvs = [(healvis_bls[i].ant1, healvis_bls[i].ant2) for i in _bls]
+        antpairs_hvs = [(healvis_bls[i].ant2, healvis_bls[i].ant1) for i in _bls]
         antpairs_uvd = [uvd.baseline_to_antnums(_b) for _b in uvd.baseline_array]
-        
+       
         assert antpairs_hvs == antpairs_uvd, \
                                  "healvis 'bls' array does not match the " \
                                  "ordering of existing UVData.baseline_array"

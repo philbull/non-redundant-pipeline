@@ -6,22 +6,22 @@ sim_spec:
     ntimes:             600
     integration_time:   40.
     start_time:         2458902.4
-    cat_name:           ../../pb_hera_bakup/catBC_nobright.txt
+    cat_name:           catall.txt
     apply_gains:        True
     apply_noise:        True
     ant_pert:           False
     seed:               15
     ant_pert_sigma:     0.05
-    use_legacy_array:   True
     hex_spec:           [3, 4]
     hex_ants_per_row:   null 
     hex_ant_sep:        14.6
 
 sim_output:
-    datafile_true:          ../calibration/viscatBC.uvh5
-    datafile_post_gains:    ../calibration/viscatBC_g.uvh5
-    datafile_post_noise:    ../calibration/viscatBC_n.uvh5
-    gain_file:              ../calibration/viscatBC.calfits
+    datafile_true:          calibration_points/viscatBC.uvh5
+    datafile_post_diffuse:  calibration_points/viscatBC_d.uvh5
+    datafile_post_gains:    calibration_points/viscatBC_g.uvh5
+    datafile_post_noise:    calibration_points/viscatBC_n.uvh5
+    gain_file:              calibration_points/viscatBC.calfits
     clobber:                True
 
 sim_beam:
@@ -58,15 +58,15 @@ sim_gain:
 sim_noise:
     nsamp:              1.0
     seed:               10
-    noise_file:         ../calibration.nonoise/viscatall.uvh5
+    noise_file:         null
 
 sim_diffuse:
     beam_pol:           XX
     diffuse_model:      GSM
     eor_random_seed:    42
-    nprocs:             1
-    nside:              64
+    nprocs:             4
+    nside:              4
     obs_height:         1073
     obs_latitude:       -30.7215277777
     obs_longitude:      21.4283055554
-    use_diffuse:        false
+    use_diffuse:        False

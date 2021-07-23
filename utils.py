@@ -143,23 +143,6 @@ def build_hex_array(hex_spec=(3,4), ants_per_row=None, d=14.6):
     return ants
 
 
-def build_array():
-    """
-    Create a hexagonal array layout.
-    """
-    dist = 14.6
-    ants = {}
-
-  
-    for i in range(0, 4):
-        ants.update([(i, (-3.*dist/2 + i*14.6, 0., 0.))])   
-    for i in range(4, 7):
-        ants.update([(i, (-2.*dist/2 + (i-4)*14.6, -1.* np.sqrt(3) * dist/2, 0.))])   
-    for i in range(7, 10):
-        ants.update([(i, (-2.*dist/2 + (i-7)*14.6, +1.* np.sqrt(3) * dist/2, 0.))])
-    return ants
-
-
 def coherent_average_vis(uvd_in, wgt_by_nsample=True, bl_error_tol=1., 
                          inplace=False):
     """
@@ -442,13 +425,13 @@ def empty_uvdata(ants=None, nfreq=20, ntimes=20, bandwidth=0.2e8,
         Returns an empty UVData 
     """
     uvd = io.empty_uvdata(
-        nfreq=nfreq,
+        Nfreqs=nfreq,
         start_freq=start_freq,
         channel_width=bandwidth / nfreq,
         start_time=start_time,
         integration_time=integration_time,
-        ntimes=ntimes,
-        ants=ants,
+        Ntimes=ntimes,
+        array_layout=ants,
         **kwargs
     )
     
