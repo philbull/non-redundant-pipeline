@@ -84,7 +84,7 @@ def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=F
         n *= std_ij / np.sqrt(2.) # to handle real and imaginary contributions
         
         # Add noise realisation
-        uvd.data_array[bl_idxs,:,:,:] += n
+        uvd.data_array[bl_idxs,:,:,:] += n*10
     
     # Rescale nsamples_array by the assumed number of samples
     uvd.nsample_array *= nsamp
@@ -143,7 +143,7 @@ def build_hex_array(hex_spec=(3,4), ants_per_row=None, d=14.6):
     return ants
 
 
-def build_array():
+def build_array(randomize=False):
     """
     Create a hexagonal array layout.
     """
@@ -157,6 +157,13 @@ def build_array():
         ants.update([(i, (-2.*dist/2 + (i-4)*14.6, -1.* np.sqrt(3) * dist/2, 0.))])   
     for i in range(7, 10):
         ants.update([(i, (-2.*dist/2 + (i-7)*14.6, +1.* np.sqrt(3) * dist/2, 0.))])
+    
+    if randomize:
+        num = 10
+        locs = np.random.normal(size=(num, 2))*40
+        for i in range(0, num):
+            ants.update([(i, (locs[i, 0], locs[i, 1], 0.))])
+
     return ants
 
 
@@ -651,3 +658,4 @@ def remove_file_ext(dfile):
         return (dfile[:-(len(fext)+1)])
     else:
         return dfile
+

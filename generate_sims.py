@@ -20,7 +20,7 @@ if cfg_in["sim_noise"]["noise_file"] is not None and not os.path.exists(cfg_in["
 
 # Setup astropy cache for this process before anything else done
 
-cache = "/scratch/users/hgarsden/"+cfg_in["sim_spec"]["cat_name"][:-4]+"/caches/"+sys.argv[1][:-5]+"/"+str(myid)
+cache = "/scratch3/users/hgarsden/"+cfg_in["sim_spec"]["cat_name"][:-4]+"/caches/"+sys.argv[1][:-5]+"/"+str(myid)
 if not os.path.exists(cache):
     os.makedirs(cache+"/astropy")
 print("Cache", cache)
@@ -133,11 +133,16 @@ if __name__ == '__main__':
     cfg_noise = cfg['sim_noise']
     
     # Construct array layout to simulate
-    if len(cfg_spec['hex_spec']) == 0:
+    if cfg_spec['hex_spec'] == "randomize":
+        ants = utils.build_array(randomize=True)
+        print("Using build_array randomized")
+    elif len(cfg_spec['hex_spec']) == 0:
         ants = utils.build_array()
         print("Using build_array not hex_spec")
     else:
-        ants = utils.build_hex_array(hex_spec=cfg_spec['hex_spec'], 
+        hex_spec = cfg_spec['hex_spec'].split()
+        for i in range(len(hex_spec)): hex_spec[i] = int(hex_spec[i])
+        ants = utils.build_hex_array(hex_spec=hex_spec,
                                  ants_per_row=cfg_spec['hex_ants_per_row'], 
                                  d=cfg_spec['hex_ant_sep'])
     Nant = len(ants)
@@ -366,6 +371,7 @@ if __name__ == '__main__':
             utils.save_simulated_gains(uvd, gg, 
                                        outfile=cfg_out['gain_file'], 
                                        overwrite=cfg_out['clobber'])
+        
         
         # Loop over all baselines and apply gain factor
         for bl in np.unique(uvd.baseline_array):

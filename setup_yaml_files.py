@@ -37,8 +37,7 @@ if DIFFUSE_MODEL not in [ "EOR", "GSM" ]:
 DUMMY_SOURCE = os.environ.get("NR_DUMMY_SOURCE")
 if DUMMY_SOURCE not in [ "False", "True" ]:
     raise ValuesError("DUMMY_SOURCE has an invalid value: "+DUMMY_SOURCE)
-HEX_SPEC = os.environ.get("NR_HEX_SPEC").split()
-for i in range(len(HEX_SPEC)): HEX_SPEC[i] = int(HEX_SPEC[i])
+HEX_SPEC = os.environ.get("NR_HEX_SPEC")
 
 GENERATE_SIMS_YAML = sys.argv[1]
 ANALYSE_SIMS_YAML = sys.argv[2]
