@@ -12,7 +12,7 @@ import hera_cal as hc
 import pyuvdata
 from pyuvdata import UVData
 
-from hera_sim.visibilities import VisCPU #, conversions
+from hera_sim.visibilities import VisCPU, conversions
 from hera_sim.beams import PolyBeam, PerturbedPolyBeam
 from vis_cpu import conversions
 
@@ -136,9 +136,15 @@ if __name__ == '__main__':
     cfg_noise = cfg['sim_noise']
     
     # Construct array layout to simulate
-    ants = utils.build_hex_array(hex_spec=cfg_spec['hex_spec'], 
-                                     ants_per_row=cfg_spec['hex_ants_per_row'], 
-                                     d=cfg_spec['hex_ant_sep'])
+    #ants = utils.build_hex_array(hex_spec=cfg_spec['hex_spec'], 
+    #                                 ants_per_row=cfg_spec['hex_ants_per_row'], 
+    #                                 d=cfg_spec['hex_ant_sep'])
+
+    # Construct array layout from UVData object
+    uvd = UVData()
+    uvd.read_uvh5('data_0_0_filtered.uvh5')
+    ants = utils.build_array_from_uvd(uvd, pick_data_ants=True)
+
     Nant = len(ants)
     ant_index = list(ants.keys())
 
@@ -235,6 +241,7 @@ if __name__ == '__main__':
                                        **cfg_beam) for i in range(Nant)]
     else:
         beam_list = [PolyBeam(cfg_beam['beam_coeffs'], spectral_index=cfg_beam['spectral_index'], ref_freq=cfg_beam['ref_freq']) for i in range(Nant)]
+
     
     # Use VisCPU to create point source sim, or load a template file with 
     # correct data structures instead

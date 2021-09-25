@@ -142,6 +142,32 @@ def build_hex_array(hex_spec=(3,4), ants_per_row=None, d=14.6):
             
     return ants
 
+def build_array_from_uvd(uvd=None, pick_data_ants=False):
+    """
+    Build an antenna position dict from a UVData object.
+    
+    Parameters
+    ----------
+    uvd : UVdata object
+    
+    pick_data_ants : bool (default - False)
+        If True, return only antennas found in data
+    
+    Returns
+    -------
+    ants : dict
+        Dictionary with antenna IDs as the keys, and tuples with antenna 
+        (x, y, z) position values (with respect to the array center) as the 
+        values. Units: meters.
+    """
+    ants = {}
+    
+    antscord, antsidx = uvd.get_ENU_antpos(pick_data_ants=pick_data_ants)
+    
+    for i in range(len(antscord)):
+        ants[antsidx[i]] = (antscord[i,0], antscord[i,1], antscord[i,2])
+         
+    return ants
 
 def coherent_average_vis(uvd_in, wgt_by_nsample=True, bl_error_tol=1., 
                          inplace=False):
