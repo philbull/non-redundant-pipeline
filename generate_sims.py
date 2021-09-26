@@ -14,6 +14,7 @@ from pyuvdata import UVData
 
 from hera_sim.visibilities import VisCPU, conversions
 from hera_sim.beams import PolyBeam, PerturbedPolyBeam
+from hera_sim import Simulator
 from vis_cpu import conversions
 
 # Default setting for use_mpi (can be overridden by commandline arg)
@@ -93,6 +94,12 @@ def default_cfg():
     
     # Noise parameters
     cfg_noise = dict(nsamp=1., seed=None, noise_file=None)
+
+    # reflection parameters
+    cfg_reflection = dict(amp=1.e-2, dly=800.)
+
+    # xtalk parameters
+    cfg_xtalk = dict(amp=1.e-2, dly=400.)
     
     # Combine into single dict
     cfg = { 'sim_beam':     cfg_beam,
@@ -100,6 +107,8 @@ def default_cfg():
             'sim_diffuse':  cfg_diffuse,
             'sim_noise':    cfg_noise,
             'sim_gain':     cfg_gain,
+            'sim_reflection': cfg_reflection,
+            'sim_xtalk':     cfg_xtalk,
            }
     return cfg
 
@@ -134,16 +143,18 @@ if __name__ == '__main__':
     cfg_beam = cfg['sim_beam']
     cfg_gain = cfg['sim_gain']
     cfg_noise = cfg['sim_noise']
+    cfg_reflection = cfg['sim_reflection']
+    cfg_xtalk = cfg['sim_xtalk']
     
     # Construct array layout to simulate
-    #ants = utils.build_hex_array(hex_spec=cfg_spec['hex_spec'], 
-    #                                 ants_per_row=cfg_spec['hex_ants_per_row'], 
-    #                                 d=cfg_spec['hex_ant_sep'])
+    ants = utils.build_hex_array(hex_spec=cfg_spec['hex_spec'], 
+                                     ants_per_row=cfg_spec['hex_ants_per_row'], 
+                                     d=cfg_spec['hex_ant_sep'])
 
     # Construct array layout from UVData object
-    uvd = UVData()
-    uvd.read_uvh5('data_0_0_filtered.uvh5')
-    ants = utils.build_array_from_uvd(uvd, pick_data_ants=True)
+    #uvd = UVData()
+    #uvd.read_uvh5('data_0_0_filtered.uvh5')
+    #ants = utils.build_array_from_uvd(uvd, pick_data_ants=True)
 
     Nant = len(ants)
     ant_index = list(ants.keys())
@@ -177,7 +188,7 @@ if __name__ == '__main__':
     ra_new, dec_new = conversions.equatorial_to_eci_coords(
         ra_dec[:, 0], ra_dec[:, 1], obstime, location, unit="rad", frame="icrs")
 
-    #ra_dec = np.column_stack((ra_new, dec_new))
+    ra_dec = np.column_stack((ra_new, dec_new))
   
     # Build list of beams using best-fit coefficients for Chebyshev polynomials
     if cfg_beam['perturb']:
@@ -378,6 +389,20 @@ if __name__ == '__main__':
         # Output gain-multiplied data if requested
         uvd.write_uvh5(cfg_out['datafile_post_gains'], 
                        clobber=cfg_out['clobber'])
+
+    # Add reflection gains
+    if cfg_spec['apply_reflection']:
+        sim = Simulator(data=uvd)
+        sim.add("reflection_gains", **cfg_reflection)
+        if cfg_out['datafile_post_reflection'] != '':
+            sim.write(cfg_out['datafile_post_reflection'],save_format="uvh5")
+
+    # Add crosstalk
+    if cfg_spec['apply_xtalk']:
+        sim.add("cross_coupling_xtalk", **cfg_xtalk)
+        if cfg_out['datafile_post_xtalk'] != '':
+            sim.write(cfg_out['datafile_post_xtalk'],save_format="uvh5")
+
     
     # Sync with other workers and finalise
     if use_mpi:
