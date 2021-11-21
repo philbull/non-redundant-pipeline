@@ -84,6 +84,11 @@ for f in [ "datafile_true", "datafile_post_gains", "datafile_post_noise", "dataf
   nf = os.path.basename(generate_sims["sim_output"][f])
   generate_sims["sim_output"][f] = OUTPUT_ROOT+"/"+CATALOG+"/calibration_"+WHICH+"/"+nf
 
+# Add noise dump_file
+nf = os.path.basename(generate_sims["sim_output"]["datafile_post_noise"])[:-5]
+generate_sims["sim_output"]["noise_post_noise"] = OUTPUT_ROOT+"/"+CATALOG+"/calibration_"+WHICH+"/"+nf+"n.uvh5"
+
+
 # Walk the parameters and change any instance of "None" to None
 generate_sims = change(generate_sims)
 generate_sims["orig_yaml"] = GENERATE_SIMS_YAML

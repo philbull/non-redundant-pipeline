@@ -353,13 +353,17 @@ if __name__ == '__main__':
     if cfg_spec['apply_noise']:
         # If have no noise file it will calculate noise from uvd.
         # generate with the whole catalog and diffuse then noise file is saved for later 
-        uvd = utils.add_noise_from_autos(uvd, input_noise=cfg_noise['noise_file'], 
+        uvd, uvd_noise = utils.add_noise_from_autos(uvd, input_noise=cfg_noise['noise_file'], 
                                          nsamp=cfg_noise['nsamp'], 
                                          seed=cfg_noise['seed'], inplace=True)
         
         if cfg_out['datafile_post_noise'] != '':
             uvd.write_uvh5(cfg_out['datafile_post_noise'], 
                            clobber=cfg_out['clobber'])
+        if cfg_out['noise_post_noise'] != '':
+            uvd_noise.write_uvh5(cfg_out['noise_post_noise'],
+                           clobber=cfg_out['clobber'])
+
     
     # Add fluctuating gain model if requested
     if cfg_spec['apply_gains']:

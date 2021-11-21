@@ -46,6 +46,8 @@ def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=F
         uvd = uvd_in
     else:
         uvd = copy.deepcopy(uvd_in)
+
+    uvd_noise = copy.deepcopy(uvd_in)
     
     # Get channel width and integration time
     dnu = uvd.channel_width # in Hz
@@ -84,12 +86,13 @@ def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=F
         n *= std_ij / np.sqrt(2.) # to handle real and imaginary contributions
         
         # Add noise realisation
-        uvd.data_array[bl_idxs,:,:,:] += n*10
-    
+        uvd.data_array[bl_idxs,:,:,:] += n
+        uvd_noise.data_array[bl_idxs,:,:,:] = np.abs(std_ij / np.sqrt(2.)) + 1.j * np.abs(std_ij / np.sqrt(2.))
+
     # Rescale nsamples_array by the assumed number of samples
     uvd.nsample_array *= nsamp
     
-    return uvd
+    return uvd, uvd_noise
 
 
 def build_hex_array(hex_spec=(3,4), ants_per_row=None, d=14.6):
