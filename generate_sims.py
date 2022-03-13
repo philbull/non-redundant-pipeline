@@ -420,7 +420,7 @@ if __name__ == '__main__':
                                      "ordering of existing UVData.baseline_array"
 
             # Add diffuse data to UVData object
-            uvd.data_array[:,:,:,0] += 
+            uvd.data_array[:,:,:,0] += gsm_vis
 
         except AssertionError:
             print("Healvis and UVData array ordering do not match; starting reordering.")
