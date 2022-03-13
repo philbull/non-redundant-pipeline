@@ -7,6 +7,15 @@ import hera_pspec as hp
 import hera_cal as hc
 from hera_sim import io
 
+from astropy.units import sday, rad
+from astropy import units
+from astropy.coordinates.angles import Latitude, Longitude
+import astropy_healpix
+import healpy as hp
+
+import pyradiosky
+from pyradiosky import SkyModel
+
 import copy, yaml
 
 
@@ -83,6 +92,10 @@ def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=F
           + 1.j * np.random.normal(size=std_ij.size).reshape(std_ij.shape)
         n *= std_ij / np.sqrt(2.) # to handle real and imaginary contributions
         
+        # Keep real part only for auto-bls
+        if ant1 == ant2:
+            n = n.real
+
         # Add noise realisation
         uvd.data_array[bl_idxs,:,:,:] += n
     
@@ -90,6 +103,7 @@ def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=F
     uvd.nsample_array *= nsamp
     
     return uvd
+
 
 
 def build_hex_array(hex_spec=(3,4), ants_per_row=None, d=14.6):
@@ -466,7 +480,7 @@ def empty_uvdata(ants=None, nfreq=20, ntimes=20, bandwidth=0.2e8,
     return uvd
 
 
-def load_ptsrc_catalog(cat_name, freqs, freq0=1.e8, usecols=(10,12,77,-5)):
+def load_ptsrc_catalog(cat_name, freqs, freq0=1.e8, usecols=(10,12,77,-5), legacy=False):
     """
     Load point sources from the GLEAM catalog.
     
@@ -486,14 +500,21 @@ def load_ptsrc_catalog(cat_name, freqs, freq0=1.e8, usecols=(10,12,77,-5)):
         order) are (RA, Dec, flux, spectral_index). Assumes angles in degrees, 
         fluxes in Jy.
         Default (for GLEAM catalogue): (10,12,77,-5).
+
+    legacy : bool, optional
+        If True, return ra_dec and flux arrays. If False, return a SkyModel object.
     
     Returns
     -------
-    ra_dec : array_like
-        RA and Dec of sources, in radians.
+    sky_model : pyradiosky.SkyModel, optional
+        If `legacy=False`, a `SkyModel` object is returned.
+
+    ra_dec : array_like, optional
+        RA and Dec of sources, in radians. (If `legacy=True`.)
     
-    flux : array_like
-        Fluxes of point sources as a function of frequency, in Jy.
+    flux : array_like, optional
+        Fluxes of point sources as a function of frequency, in Jy. 
+        (If `legacy=True`.)
     """
     #aa = np.genfromtxt(cat_name, usecols=usecols)
     #bb = aa[ (aa[:,2] >= 15.) & np.isfinite(aa[:,3])] # Fluxes more than 1 Jy
@@ -505,7 +526,103 @@ def load_ptsrc_catalog(cat_name, freqs, freq0=1.e8, usecols=(10,12,77,-5)):
     # Calculate SEDs
     flux = (freqs[:,np.newaxis]/freq0)**bb[:,3].T * bb[:,2].T
     
-    return ra_dec, flux
+    # Return ra_dec and flux arrays, if in legacy mode
+    if legacy:
+        return ra_dec, flux
+
+
+    # Package into a SkyModel object
+    nsrc = ra_dec.shape[0]
+    sky_model = SkyModel(
+        ra=Longitude(ra_dec[:,0], unit=rad),
+        dec=Latitude(ra_dec[:,1], unit=rad),
+        stokes=np.array(
+            [
+                flux.T,                       # Stokes I
+                np.zeros((len(freqs), nsrc)), # Stokes Q = 0
+                np.zeros((len(freqs), nsrc)), # Stokes U = 0
+                np.zeros((len(freqs), nsrc)), # Stokes V = 0
+            ]
+        ),
+        name=np.array(["sources"] * len(ra)),
+        spectral_type="full",
+        freq_array=freqs,
+    )
+    return sky_model
+
+
+def gsm_sky_model(freqs, resolution="hi", nside=None):
+    """
+    Return a pyradiosky SkyModel object populated with a Global Sky Model datacube in 
+    healpix format.
+
+    Parameters
+    ----------
+    freqs : array_like
+        Frequency array, in Hz.
+
+    resolution : str, optional
+        Whether to use the high or low resolution pygdsm maps. Options are 'hi' or 'low'.
+
+    nside : int, optional
+        Healpix nside to up- or down-sample the GSM sky model to. Default: `None` (use the 
+        default from `pygdsm`, which is 1024).
+
+    Returns
+    -------
+    sky_model : pyradiosky.SkyModel
+        SkyModel object.
+    """
+    import pygdsm
+    
+    # Initialise GSM object
+    gsm = pygdsm.GlobalSkyModel2016(data_unit="TRJ", resolution=resolution, freq_unit="Hz")
+
+    # Construct GSM datacube
+    hpmap = gsm.generate(freqs=freqs) # FIXME: nside=1024, ring ordering, galactic coords
+    hpmap_units = "K"
+
+    # Set nside or resample
+    nside_gsm = int(astropy_healpix.npix_to_nside(hpmap.shape[-1]))
+    if nside is None:
+        # Use default nside from pygdsm map
+        nside = nside_gsm
+    else:
+        # Transform to a user-selected nside
+        hpmap_new = np.zeros((hpmap.shape[0], astropy_healpix.nside_to_npix(nside)), 
+                             dtype=hpmap.dtype)
+        for i in range(hpmap.shape[0]):
+            hpmap_new[i,:] = hp.ud_grade(hpmap[i,:], 
+                                         nside_out=nside, 
+                                         order_in="RING", 
+                                         order_out="RING")
+        hpmap = hpmap_new
+
+    # Get datacube properties
+    npix = astropy_healpix.nside_to_npix(nside)
+    indices = np.arange(npix)
+    history = "pygdsm.GlobalSkyModel2016, data_unit=TRJ, resolution=low, freq_unit=MHz"
+    freq = units.Quantity(freqs, "hertz")
+
+    # hmap is in K
+    stokes = units.Quantity(np.zeros((4, len(freq), len(indices))), hpmap_units)
+    stokes[0] = hpmap * units.Unit(hpmap_units)
+
+    # Construct pyradiosky SkyModel
+    sky_model = pyradiosky.SkyModel(
+                                    nside=nside,
+                                    hpx_inds=indices,
+                                    stokes=stokes,
+                                    spectral_type="full",
+                                    freq_array=freq,
+                                    history=history,
+                                    frame="galactic",
+                                    hpx_order="ring"
+                                )
+
+    sky_model.healpix_interp_transform(frame='icrs', full_sky=True, inplace=True) # do coord transform
+    assert sky_model.component_type == "healpix"
+    return sky_model
 
 
 def load_config(config_file, cfg_default):
