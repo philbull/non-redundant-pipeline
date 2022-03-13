@@ -26,14 +26,16 @@ from pyradiosky import SkyModel
 # Default setting for use_mpi (can be overridden by commandline arg)
 USE_MPI_DEFAULT = True
 
-# Legacy switch to enable direct use of healvis instead of viscpu
-USE_HEALVIS = True
-
 try:
     import healpy
     import healvis
 except:
     print("Unable to import healpy and/or healvis; diffuse mode unavailable")
+
+try:
+    import pygdsm
+except:
+    print("Unable to import pygdsm; vis_cpu diffuse mode unavailable")
 
 import utils
 import time, copy, sys
@@ -63,6 +65,7 @@ def default_cfg():
                         
     # Diffuse model specification
     cfg_diffuse = dict( use_diffuse=False,
+                        use_healvis=False,
                         nside=64,
                         obs_latitude=-30.7215277777,
                         obs_longitude = 21.4283055554,
@@ -130,7 +133,7 @@ def default_cfg():
 
 
 if __name__ == '__main__':
-    # Run simulations (MPI-enabled)    
+    # Run simulations (MPI-enabled)
 
     # Get config file name from args
     use_mpi = USE_MPI_DEFAULT
@@ -317,48 +320,62 @@ if __name__ == '__main__':
         # Run the simulation
         tstart = time.time()
         simulator.simulate()
-        print("Simulation took %2.1f sec" % (time.time() - tstart))
-    
-        if myid != 0:
-            # Wait for root worker to finish IO before ending all other worker procs
-            comm.Barrier()
-            sys.exit(0)
-    
+        if myid == 0:
+            print("Simulation (point sources) took %2.1f sec" % (time.time() - tstart))
+        
         # Write simulated data to file
         uvd = simulator.uvdata
-        if cfg_out['datafile_true'] != '':
-            uvd.write_uvh5(cfg_out['datafile_true'], clobber=cfg_out['clobber'])
-    
-    
-    # -------------------------------------------------------------
-
-    # Add new-style foreground and EoR simulation effects
-    #noiselike_eor = NoiselikeEoR(eor_amp=, min_delay=, max_delay=,)
-    if cfg_eor["use_eor"]:
-        # Construct new Simulator object and add flat-spectrum EoR to it
-        sim = Simulator(data=simulator.uvdata)
-        sim.add("noiselike_eor", 
-                eor_amp=float(cfg_eor['eor_amp']), 
-                seed=cfg_eor['seed'], 
-                min_delay=cfg_eor['min_delay'], 
-                max_delay=cfg_eor['max_delay'])
-        
-        if cfg_out['datafile_post_eor'] != '':
-            sim.write(filename=cfg_out['datafile_post_eor'], 
-                      clobber=cfg_out['clobber'],
-                      fix_autos=True)
-
-    # -------------------------------------------------------------
-
+        if myid == 0:
+            if cfg_out['datafile_true'] != '':
+                uvd.write_uvh5(cfg_out['datafile_true'], clobber=cfg_out['clobber'])
 
     # Simulate diffuse model using vis_cpu
-    if cfg_diffuse['use_diffuse'] and not USE_HEALVIS:
-        #sky = SkyModel.from_skyh5(os.path.join(SKY_DATA_PATH, "gsm_galactic.skyh5"))
-        pass
+    if cfg_diffuse['use_diffuse'] and not cfg_diffuse['use_healvis']:
+        if myid == 0:
+            print("Using GSM diffuse model (vis_cpu)")
+        
+        # FIXME: This can use a lot of memory in MPI mode, as there are Nprocs duplicates 
+        # of the whole datacube!
+        # Build SkyModel from GSM (pygdsm)
+        gsm_sky = utils.gsm_sky_model(np.unique(uvd.freq_array), 
+                                      resolution="hi", 
+                                      nside=cfg_diffuse['nside'])
 
+        # Construct a data model
+        data_model = ModelData(uvdata=uvd, 
+                               sky_model=gsm_sky,
+                               beams=beam_list)
+
+        # Initialise VisCPU handler object
+        viscpu = VisCPU(use_pixel_beams=False, precision=2, mpi_comm=comm)
+
+        # Create a VisibilitySimulation object
+        simulator_diffuse = VisibilitySimulation(data_model=data_model, 
+                                                 simulator=viscpu)
+
+        # Run the simulation
+        tstart = time.time()
+        simulator_diffuse.simulate()
+        if myid == 0:
+            print("Simulation (diffuse) took %2.1f sec" % (time.time() - tstart))
+
+        # Output diffuse-added data if requested
+        if myid == 0:
+            if cfg_out['datafile_post_diffuse'] != '':
+                uvd.write_uvh5(cfg_out['datafile_post_diffuse'], 
+                               clobber=cfg_out['clobber'],
+                               fix_autos=True)
+
+    # Close other MPI processes
+    if myid != 0:
+        # Wait for root worker to finish IO before ending all other worker procs
+        print("Worker %d waiting to end" % myid)
+        comm.Barrier()
+        print("Worker %d finishing" % myid)
+        sys.exit(0)
 
     # Simulate diffuse model using healvis (multi-threaded) (use https://github.com/hughbg/healvis.git)
-    if cfg_diffuse['use_diffuse'] and USE_HEALVIS:
+    if cfg_diffuse['use_diffuse'] and cfg_diffuse['use_healvis']:
         
         # Create healvis baseline spec
         healvis_bls = []
@@ -384,16 +401,16 @@ if __name__ == '__main__':
         
         # Create GSM sky model
         if cfg_diffuse["diffuse_model"] == "EOR":
-            print("Using EOR diffuse model")
+            print("Using EOR diffuse model (healvis)")
             gsm = healvis.sky_model.construct_skymodel('flat_spec', freqs=freqs, Nside=cfg_diffuse['nside'], 
                                                     ref_chan=0, sigma=1e-3, seed=cfg_diffuse['eor_random_seed'])
         elif cfg_diffuse["diffuse_model"] == "GSM":
-            print("Using GSM diffuse model")
+            print("Using GSM diffuse model (healvis)")
             gsm = healvis.sky_model.construct_skymodel('gsm', freqs=freqs,
                                                    ref_chan=0,
                                                    Nside=cfg_diffuse['nside'])
         else:
-            raise ValueError("Invalid diffuse model: "+cfg_diffuse["diffuse_model"])
+            raise ValueError("Invalid diffuse model: %s" % cfg_diffuse["diffuse_model"])
 
         gsm = healvis.sky_model.construct_skymodel('gsm', freqs=freqs, 
                                                    ref_chan=0,
@@ -431,7 +448,7 @@ if __name__ == '__main__':
             # Loop over bl-times and assign values (can be slow)
             for i in range(len(_times)):
                 idx = np.where((uvd.baseline_array == bls_hvs[i]) & (uvd.time_array == _times[i]))
-                uvd.data_array[idx,:,:,0] = gsm_vis[i]
+                uvd.data_array[idx,:,:,0] += gsm_vis[i]
             print("Finished array reordering.")
         
         # Output diffuse-added data if requested
@@ -440,6 +457,21 @@ if __name__ == '__main__':
                            clobber=cfg_out['clobber'],
                            fix_autos=True)
     
+    # Add new-style foreground and EoR simulation effects
+    if cfg_eor["use_eor"]:
+        # Construct new Simulator object and add flat-spectrum EoR to it
+        sim = Simulator(data=simulator.uvdata)
+        sim.add("noiselike_eor", 
+                eor_amp=float(cfg_eor['eor_amp']), 
+                seed=cfg_eor['seed'], 
+                min_delay=cfg_eor['min_delay'], 
+                max_delay=cfg_eor['max_delay'])
+        
+        if cfg_out['datafile_post_eor'] != '':
+            sim.write(filename=cfg_out['datafile_post_eor'], 
+                      clobber=cfg_out['clobber'],
+                      fix_autos=True)
+
     # Add noise
     if cfg_spec['apply_noise']:
         uvd = utils.add_noise_from_autos(uvd, input_noise=cfg_noise['noise_file'], 
@@ -494,5 +526,6 @@ if __name__ == '__main__':
     # Sync with other workers and finalise
     if use_mpi:
         comm.Barrier()
+        print("Worker %d finishing" % myid)
     sys.exit(0)
     
