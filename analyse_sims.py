@@ -30,7 +30,6 @@ def default_cfg():
                        meta_ext='.redcal_meta.hdf5', 
                        iter0_prefix='', 
                        outdir=None, 
-                       ant_metrics_file=None, 
                        clobber=True, 
                        nInt_to_load=None, 
                        pol_mode='1pol', 
@@ -135,8 +134,7 @@ if __name__ == '__main__':
     # (5) Load calibration solutions and apply to data
     uvc = UVCal()
     uvc.read_calfits(input_ext+'_new.calfits')
-    uvd_cal = uvutils.uvcalibrate(uvd_in, uvc, inplace=False, prop_flags=True, 
-                                  flag_missing=True)
+    uvd_cal = uvutils.uvcalibrate(uvd_in, uvc, inplace=False, prop_flags=True) 
 
     # Output calibrated data
     uvd_cal.write_uvh5(output_data, clobber=True)

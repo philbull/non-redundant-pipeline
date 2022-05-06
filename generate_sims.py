@@ -76,7 +76,8 @@ def default_cfg():
                         nprocs=1 )
 
     # EoR model specification (new style)
-    cfg_eor = dict( eor_amp=1e-3, 
+    cfg_eor = dict( use_eor=True,
+                    eor_amp=1e-3, 
                     seed=None, 
                     min_delay=-np.inf, 
                     max_delay=np.inf )
@@ -187,7 +188,9 @@ if __name__ == '__main__':
                             (cfg_spec['ant_pert_sigma']*np.random.randn(3))) #3 for x,y,z
     
     # Build empty UVData object with correct dimensions
-    uvd = utils.empty_uvdata(ants=ants, **cfg_spec)
+    antenna_names = np.array([ "ant"+str(i) for i in ant_index ])
+    uvd = utils.empty_uvdata(ants=ants, antenna_names=antenna_names, **cfg_spec)
+
 
     # Create frequency array
     freq0 = 100e6
@@ -327,7 +330,7 @@ if __name__ == '__main__':
         uvd = simulator.uvdata
         if myid == 0:
             if cfg_out['datafile_true'] != '':
-                uvd.write_uvh5(cfg_out['datafile_true'], clobber=cfg_out['clobber'])
+                uvd.write_uvh5(cfg_out['datafile_true'], clobber=cfg_out['clobber'], fix_autos=True)
 
     # Simulate diffuse model using vis_cpu
     if cfg_diffuse['use_diffuse'] and not cfg_diffuse['use_healvis']:
@@ -507,20 +510,20 @@ if __name__ == '__main__':
         
         # Output gain-multiplied data if requested
         uvd.write_uvh5(cfg_out['datafile_post_gains'], 
-                       clobber=cfg_out['clobber'])
+                      fix_autos=True,  clobber=cfg_out['clobber'])
 
     # Add reflection gains
     if 'apply_reflection' in cfg_spec.keys() and cfg_spec['apply_reflection']:
         sim = Simulator(data=uvd)
         sim.add("reflection_gains", **cfg_reflection)
         if cfg_out['datafile_post_reflection'] != '':
-            sim.write(cfg_out['datafile_post_reflection'], save_format="uvh5")
+            sim.write(cfg_out['datafile_post_reflection'], save_format="uvh5", clobber=cfg_out['clobber'], fix_autos=True)
 
     # Add crosstalk
     if 'apply_xtalk' in cfg_spec.keys() and cfg_spec['apply_xtalk']:
         sim.add("cross_coupling_xtalk", **cfg_xtalk)
         if cfg_out['datafile_post_xtalk'] != '':
-            sim.write(cfg_out['datafile_post_xtalk'], save_format="uvh5")
+            sim.write(cfg_out['datafile_post_xtalk'], save_format="uvh5", clobber=cfg_out['clobber'], fix_autos=True)
 
     
     # Sync with other workers and finalise

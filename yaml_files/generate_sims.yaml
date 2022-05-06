@@ -25,6 +25,7 @@ sim_output:
     datafile_post_noise:    calibration_points/viscatBC_n.uvh5
     datafile_post_reflection: calibration_points/viscatBC_r.uvh5
     datafile_post_xtalk:    calibration_points/viscatBC_x.uvh5
+    datafile_post_eor:      calibration_points/viscatBC_e.uvh5
     gain_file:              calibration_points/viscatBC.calfits
     clobber:                True
 

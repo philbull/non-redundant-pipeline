@@ -11,7 +11,7 @@ from astropy.units import sday, rad
 from astropy import units
 from astropy.coordinates.angles import Latitude, Longitude
 import astropy_healpix
-import healpy as hp
+import healpy as hpy
 
 import pyradiosky
 from pyradiosky import SkyModel
@@ -228,6 +228,7 @@ def coherent_average_vis(uvd_in, wgt_by_nsample=True, bl_error_tol=1.,
 
     # Eliminate baselines not in data
     antpairs = uvd.get_antpairs()
+    reds = [[(bl[1], bl[0]) for bl in blg] for blg in reds]    # Need to flip the antenna pairs
     reds = [[bl for bl in blg if bl in antpairs] for blg in reds]
     reds = [blg for blg in reds if len(blg) > 0]
     
@@ -592,7 +593,7 @@ def gsm_sky_model(freqs, resolution="hi", nside=None):
         hpmap_new = np.zeros((hpmap.shape[0], astropy_healpix.nside_to_npix(nside)), 
                              dtype=hpmap.dtype)
         for i in range(hpmap.shape[0]):
-            hpmap_new[i,:] = hp.ud_grade(hpmap[i,:], 
+            hpmap_new[i,:] = hpy.ud_grade(hpmap[i,:], 
                                          nside_out=nside, 
                                          order_in="RING", 
                                          order_out="RING")
