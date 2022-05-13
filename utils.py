@@ -55,6 +55,9 @@ def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=F
         uvd = uvd_in
     else:
         uvd = copy.deepcopy(uvd_in)
+
+    uvd_noise = copy.deepcopy(uvd_in)
+ 
     
     # Get channel width and integration time
     dnu = uvd.channel_width # in Hz
@@ -98,11 +101,15 @@ def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=F
 
         # Add noise realisation
         uvd.data_array[bl_idxs,:,:,:] += n
-    
+        if ant1 == ant2:
+            uvd_noise.data_array[bl_idxs,:,:,:] = 0j
+        else:
+            uvd_noise.data_array[bl_idxs,:,:,:] = np.abs(std_ij / np.sqrt(2.)) + 1.j * np.abs(std_ij / np.sqrt(2.))
+
     # Rescale nsamples_array by the assumed number of samples
     uvd.nsample_array *= nsamp
     
-    return uvd
+    return uvd, uvd_noise
 
 
 
@@ -134,6 +141,7 @@ def build_hex_array(hex_spec=(3,4), ants_per_row=None, d=14.6):
         (x, y, z) position values (with respect to the array center) as the 
         values. Units: meters.
     """
+    
     ants = {}
     
     # If ants_per_row isn't given, build it from hex_spec
@@ -228,7 +236,7 @@ def coherent_average_vis(uvd_in, wgt_by_nsample=True, bl_error_tol=1.,
 
     # Eliminate baselines not in data
     antpairs = uvd.get_antpairs()
-    reds = [[(bl[1], bl[0]) for bl in blg] for blg in reds]    # Need to flip the antenna pairs
+    reds = [[(bl[1], bl[0]) for bl in blg] for blg in reds]
     reds = [[bl for bl in blg if bl in antpairs] for blg in reds]
     reds = [blg for blg in reds if len(blg) > 0]
     
@@ -473,6 +481,8 @@ def empty_uvdata(ants=None, nfreq=20, ntimes=20, bandwidth=0.2e8,
         integration_time=integration_time,
         Ntimes=ntimes,
         array_layout=ants,
+        #polarization_array=[-5, -6],
+
         **kwargs
     )
     
