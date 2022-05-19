@@ -562,7 +562,7 @@ def load_ptsrc_catalog(cat_name, freqs, freq0=1.e8, usecols=(10,12,77,-5), legac
     return sky_model
 
 
-def gsm_sky_model(freqs, resolution="hi", nside=None):
+def gsm_sky_model(freqs, factor_increase=1, resolution="hi", nside=None):
     """
     Return a pyradiosky SkyModel object populated with a Global Sky Model datacube in 
     healpix format.
@@ -608,6 +608,8 @@ def gsm_sky_model(freqs, resolution="hi", nside=None):
                                          order_in="RING", 
                                          order_out="RING")
         hpmap = hpmap_new
+
+    hpmap *= factor_increase
 
     # Get datacube properties
     npix = astropy_healpix.nside_to_npix(nside)

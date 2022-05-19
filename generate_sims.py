@@ -66,6 +66,7 @@ def default_cfg():
     # Diffuse model specification
     cfg_diffuse = dict( use_diffuse=False,
                         use_healvis=False,
+                        factor_increase=1,
                         nside=64,
                         obs_latitude=-30.7215277777,
                         obs_longitude = 21.4283055554,
@@ -340,7 +341,7 @@ if __name__ == '__main__':
         # FIXME: This can use a lot of memory in MPI mode, as there are Nprocs duplicates 
         # of the whole datacube!
         # Build SkyModel from GSM (pygdsm)
-        gsm_sky = utils.gsm_sky_model(np.unique(uvd.freq_array), 
+        gsm_sky = utils.gsm_sky_model(np.unique(uvd.freq_array), factor_increase=cfg_diffuse['factor_increase'],
                                       resolution="hi", 
                                       nside=cfg_diffuse['nside'])
 

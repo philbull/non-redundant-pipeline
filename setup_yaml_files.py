@@ -17,7 +17,6 @@ def setup_yaml_gen(setup, in_gen, out_gen):
     # Retrieve environment
 
 
-    CATALOG = setup["catalog"]
     OUTPUT_ROOT = setup["output_root"]
     NUM_TIMES = int(setup["num_times"])
     NUM_FREQS = int(setup["num_freqs"])
@@ -56,10 +55,12 @@ def setup_yaml_gen(setup, in_gen, out_gen):
 
     with open(in_gen) as f:
       generate_sims = yaml.load(f, Loader=yaml.FullLoader)
+      if generate_sims["sim_spec"]["cat_name"] is None:
+          generate_sims["sim_spec"]["cat_name"] = global_setup["catalog_dir"]+".txt"
+
 
  
     nf = os.path.basename(generate_sims["sim_output"]["datafile_true"])
-    generate_sims["sim_spec"]["cat_name"] = CATALOG+".txt"
     generate_sims["sim_spec"]["ntimes"] = NUM_TIMES
     generate_sims["sim_spec"]["nfreq"] = NUM_FREQS
     generate_sims["sim_spec"]["bandwidth"] = NUM_FREQS*97e3
@@ -71,6 +72,7 @@ def setup_yaml_gen(setup, in_gen, out_gen):
     generate_sims["sim_spec"]["output_root"] = OUTPUT_ROOT
 
 
+    CATALOG_DIR = generate_sims["sim_spec"]["cat_name"][:-4]
 
     # Add the parameters for use_diffuse
     generate_sims["sim_diffuse"]["use_diffuse"] = USE_DIFFUSE
@@ -81,7 +83,7 @@ def setup_yaml_gen(setup, in_gen, out_gen):
     # Fix output file path
     for f in [ "datafile_true", "datafile_post_gains", "datafile_post_noise", "datafile_post_diffuse", "gain_file" ]:
       nf = os.path.basename(generate_sims["sim_output"][f])
-      generate_sims["sim_output"][f] = OUTPUT_ROOT+"/"+CATALOG+"/"+nf
+      generate_sims["sim_output"][f] = OUTPUT_ROOT+"/"+CATALOG_DIR+"/"+nf
 
     # use_eor
     generate_sims["sim_eor"] = { "use_eor" : USE_EOR }
@@ -90,7 +92,7 @@ def setup_yaml_gen(setup, in_gen, out_gen):
 
     # Add noise dump_file
     nf = os.path.basename(generate_sims["sim_output"]["datafile_post_noise"])[:-5]
-    generate_sims["sim_output"]["noise_post_noise"] = OUTPUT_ROOT+"/"+CATALOG+"/"+nf+"n.npz"
+    generate_sims["sim_output"]["noise_post_noise"] = OUTPUT_ROOT+"/"+CATALOG_DIR+"/"+nf+"n.npz"
 
 
     # Walk the parameters and change any instance of "None" to None
@@ -103,7 +105,6 @@ def setup_yaml_gen(setup, in_gen, out_gen):
     stream.close()
 
 def setup_yaml_analyse(setup, in_gen, in_analyse, out_analyse):
-    CATALOG = setup["catalog"]
     OUTPUT_ROOT = setup["output_root"]
     NUM_FREQS = int(setup["num_freqs"])
     CAL_AS_HICKLE = setup["cal_as_hickle"]
@@ -113,10 +114,14 @@ def setup_yaml_analyse(setup, in_gen, in_analyse, out_analyse):
 
     with open(in_gen) as f:
         generate_sims = yaml.load(f, Loader=yaml.FullLoader)
+        if generate_sims["sim_spec"]["cat_name"] is None:
+            generate_sims["sim_spec"]["cat_name"] = global_setup["catalog_dir"]+".txt"
+
+    CATALOG_DIR = generate_sims["sim_spec"]["cat_name"][:-4]
 
     for f in [ "datafile_post_gains", "gain_file" ]:
         nf = os.path.basename(generate_sims["sim_output"][f])
-        generate_sims["sim_output"][f] = OUTPUT_ROOT+"/"+CATALOG+"/"+nf
+        generate_sims["sim_output"][f] = OUTPUT_ROOT+"/"+CATALOG_DIR+"/"+nf
 
 
     with open(in_analyse) as f:

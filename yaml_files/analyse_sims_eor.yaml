@@ -16,6 +16,7 @@ redcal:
     meta_ext:           .redcal_meta.hdf5 
     iter0_prefix:       ""
     outdir:             
+    ant_metrics_file:   
     clobber:            True 
     nInt_to_load:       
     pol_mode:           1pol 
