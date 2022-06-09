@@ -132,9 +132,10 @@ if __name__ == '__main__':
     new_gains = utils.fix_redcal_degeneracies(input_data, 
                                               cal['g_omnical'], 
                                               true_gains)
+
     hc.redcal.write_cal(input_ext+'_new.calfits', new_gains,
                         uvd_in.freq_array.flatten(),
-                        np.unique(uvd_in.time_array))
+                        np.unique(uvd_in.time_array), overwrite=True)
 
     # (5) Load calibration solutions and apply to data
     uvc = UVCal()
