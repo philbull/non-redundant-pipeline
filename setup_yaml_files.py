@@ -108,6 +108,7 @@ def setup_yaml_analyse(setup, in_gen, in_analyse, out_analyse):
     OUTPUT_ROOT = setup["output_root"]
     NUM_FREQS = int(setup["num_freqs"])
     CAL_AS_HICKLE = setup["cal_as_hickle"]
+    REPLACE_OUTLIER = setup["replace_outlier"]
 
     if CAL_AS_HICKLE not in [ False, True ]:
         raise ValueError("CAL_AS_HICKLE has an invalid value: "+str(CAL_AS_HICKLE))
@@ -133,6 +134,7 @@ def setup_yaml_analyse(setup, in_gen, in_analyse, out_analyse):
     analyse_sims["analysis"]["input_truegain"] = generate_sims["sim_output"]["gain_file"]
     analyse_sims["analysis"]["output_data"] = analyse_sims["analysis"]["input_data"][:-5]+"_cal.uvh5"
     analyse_sims["analysis"]["cal_as_hickle"] = CAL_AS_HICKLE
+    analyse_sims["analysis"]["replace_outlier"] = REPLACE_OUTLIER
     analyse_sims["pspec_run"]["spw_ranges"] = "(0,"+str(NUM_FREQS)+")"
     analyse_sims["orig_yaml"] = in_analyse
     del analyse_sims["redcal"]["ant_metrics_file"]
