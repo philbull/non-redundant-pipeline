@@ -75,6 +75,7 @@ cd ../gain_sampler
 date
 python setup_yaml_file.py {file_root} {global_yaml} {in_sampler_yaml} samp$$.yaml
 python run_sampler.py samp$$.yaml
+rm samp$$.yaml
 date
 """.format(runtime=runtime, mem=mem, file_root=file_root, in_sampler_yaml=in_sampler_yaml,
           global_yaml=global_yaml)
@@ -138,7 +139,7 @@ with open("Makefile", "w") as f:
     f.write("ROOT := "+global_setup["output_root"]+"\n\n")
 
 
-os.system("rm run_*")
+
 all = ""
 phony = []
 for gen in gen_to_analyse:
@@ -168,7 +169,9 @@ for gen in gen_to_analyse:
     # output, dependencies, comment, command
     write_makefile_rule(output,
                         [ "yaml_files/"+gen, 
-                         "run_generate_"+str(file_counter) ],
+                         "globals.yaml",
+                         "generate_sims.py"
+                          ],
                         "Generate",
                         "sh run_generate_"+str(file_counter))
     previous_output = output
@@ -189,7 +192,8 @@ for gen in gen_to_analyse:
     write_makefile_rule(output,
                         [ previous_output,
                            "yaml_files/"+gen_to_analyse[gen], 
-                         "run_analyse_"+str(file_counter) ],
+                           "analyse_sims.py"
+                         ],
                         "Analyse",
                         "sh run_analyse_"+str(file_counter))
     previous_output = output
@@ -212,7 +216,7 @@ for gen in gen_to_analyse:
                         [ previous_output,
                            "../gain_sampler/run_sampler.py",
                          "../gain_sampler/yaml_files/sampler.yaml",
-                         "run_sample_"+str(file_counter) ],
+                         ],
                         "Sampler",
                         "sh run_sample_"+str(file_counter))
     previous_output = output
@@ -232,96 +236,102 @@ for gen in gen_to_analyse:
     write_makefile_rule(output,
                         [ previous_output,
                           "../gain_sampler/paper_plots.ipynb",
-                         "run_plot_"+str(file_counter) ],
-                        "Sampler",
+                          ],
+                        "Plot",
                         "sh run_plot_"+str(file_counter))
     all += CATALOG_DIR+"/paper_plots_"+cl(case)+"_out.ipynb"+" "
     phony.append( ( CATALOG_DIR+"/paper_plots_"+cl(case)+"_out.ipynb", output ) )
     previous_output = output
     file_counter += 1
+    
+    
+def create_varied_sampler_run(case):
+    global all, phony, file_counter
+    
+    # Always based on vanilla sim. Just different sampler yaml file, then need different plot output.
+    # Must be a sampler yaml file called sampler_<case>.yaml
 
-## Wide prior
-# runtime, mem, file_root, in_sampler_yaml, global_yaml, script_name
-CATALOG_DIR = "catall_nobright"
-create_sampler_script(global_setup["sampler_time"], 
-                      int(np.ceil(float(global_setup["sampler_mem"])/8)), 
-                      global_setup["output_root"]+"/"+CATALOG_DIR+"/viscatBC", 
-                      "yaml_files/sampler_wide_prior.yaml", 
-                      "../non-redundant-pipeline/globals.yaml",
-                      "run_sample_"+str(file_counter))
+    # runtime, mem, file_root, in_sampler_yaml, global_yaml, script_name
+    CATALOG_DIR = "catall_nobright"
+    create_sampler_script(global_setup["sampler_time"], 
+                          int(np.ceil(float(global_setup["sampler_mem"])/8)), 
+                          global_setup["output_root"]+"/"+CATALOG_DIR+"/viscatBC", 
+                          "yaml_files/sampler_"+case+".yaml", 
+                          "../non-redundant-pipeline/globals.yaml",
+                          "run_sample_"+str(file_counter))
 
-output = "${ROOT}/"+CATALOG_DIR+"/sampled_viscatBC_wide_prior/sampler.hkl"
-# output, dependencies, comment, command
+    output = "${ROOT}/"+CATALOG_DIR+"/sampled_viscatBC_"+case+"/sampler.hkl"
+    # output, dependencies, comment, command
+    write_makefile_rule(output,
+                        [ global_setup["output_root"]+"/"+CATALOG_DIR+"/viscatBC_g_cal.uvh5",
+                           "../gain_sampler/run_sampler.py",
+                         "../gain_sampler/yaml_files/sampler_"+case+".yaml",
+                          ],
+                        "Sampler",
+                        "sh run_sample_"+str(file_counter))
+    previous_output = output
+
+     # runtime, mem, file_root, case, script_name
+    create_plots_script(global_setup["sampler_time"], 
+                        int(np.ceil(float(global_setup["sampler_mem"])/8)), 
+                        global_setup["output_root"]+"/"+CATALOG_DIR+"/sampled_viscatBC_"+case, 
+                        "vanilla_"+case, 
+                        "run_plot_"+str(file_counter))
+
+    output = "${ROOT}/"+CATALOG_DIR+"/paper_plots_vanilla_"+case+"_out.ipynb"
+    # output, dependencies, comment, command
+    write_makefile_rule(output,
+                        [ previous_output,
+                          "../gain_sampler/paper_plots.ipynb",
+                          ],
+                        "Plot",
+                        "sh run_plot_"+str(file_counter))
+
+    all += CATALOG_DIR+"/paper_plots_vanilla_"+case+"_out.ipynb"+" "
+    phony.append( ( CATALOG_DIR+"/paper_plots_vanilla_"+case+"_out.ipynb", output ) )
+    file_counter += 1
+
+for variation in [ "4_modes_gauss",  "all_modes_gauss",  "flat_prior", "huge_prior",  "wide_prior", "Vprior_offset" ]: 
+    create_varied_sampler_run(variation)
+    
+"""
+## Small sim ======
+# It has a different generate sims AND a different sampler yaml
+
+# Generate
+output = "$ROOT"+"/catall_nobright/viscatBC_small_g.uvh5"
 write_makefile_rule(output,
-                    [ previous_output,
-                       "../gain_sampler/run_sampler.py",
-                     "../gain_sampler/yaml_files/sampler_wide_prior.yaml",
-                     "run_sample_"+str(file_counter) ],
-                    "Sampler",
-                    "sh run_sample_"+str(file_counter))
+                    [ "yaml_files/generate_sims_small.yaml",
+                      ],
+                    "Generate",
+                    "sh run_generate_small")
 previous_output = output
 
- # runtime, mem, file_root, case, script_name
-create_plots_script(global_setup["sampler_time"], 
-                    int(np.ceil(float(global_setup["sampler_mem"])/8)), 
-                    global_setup["output_root"]+"/"+CATALOG_DIR+"/sampled_viscatBC_wide_prior", 
-                    "viscatBC_wide_prior", 
-                    "run_plot_"+str(file_counter))
 
-output = "${ROOT}/"+CATALOG_DIR+"/paper_plots_viscatBC_wide_prior_out.ipynb"
-# output, dependencies, comment, command
+# Sample
+output = "$ROOT"+"/catall_nobright/sampled_viscatBC_small_small"
 write_makefile_rule(output,
                     [ previous_output,
-                      "../gain_sampler/paper_plots.ipynb",
-                     "run_plot_"+str(file_counter) ],
-                    "Sampler",
-                    "sh run_plot_"+str(file_counter))
-
-all += CATALOG_DIR+"/paper_plots_viscatBC_wide_prior_out.ipynb"+" "
-phony.append( ( CATALOG_DIR+"/paper_plots_viscatBC_wide_prior_out.ipynb", output ) )
-file_counter += 1
-
-## Flat prior
-# runtime, mem, file_root, in_sampler_yaml, global_yaml, script_name
-CATALOG_DIR = "catall_nobright"
-create_sampler_script(global_setup["sampler_time"], 
-                      int(np.ceil(float(global_setup["sampler_mem"])/8)), 
-                      global_setup["output_root"]+"/"+CATALOG_DIR+"/viscatBC", 
-                      "yaml_files/sampler_flat_prior.yaml", 
-                      "../non-redundant-pipeline/globals.yaml",
-                      "run_sample_"+str(file_counter))
-
-output = "${ROOT}/"+CATALOG_DIR+"/sampled_viscatBC_flat_prior/sampler.hkl"
-# output, dependencies, comment, command
-write_makefile_rule(output,
-                    [ previous_output,
-                       "../gain_sampler/run_sampler.py",
-                     "../gain_sampler/yaml_files/sampler_flat_prior.yaml",
-                     "run_sample_"+str(file_counter) ],
-                    "Sampler",
-                    "sh run_sample_"+str(file_counter))
+                     "../gain_sampler/yaml_files/sampler_small.yaml",
+                      ],
+                    "Sample",
+                    "sh run_sample_small")
 previous_output = output
 
- # runtime, mem, file_root, case, script_name
-create_plots_script(global_setup["sampler_time"], 
-                    int(np.ceil(float(global_setup["sampler_mem"])/8)), 
-                    global_setup["output_root"]+"/"+CATALOG_DIR+"/sampled_viscatBC_flat_prior", 
-                    "viscatBC_flat_prior", 
-                    "run_plot_"+str(file_counter))
-
-output = "${ROOT}/"+CATALOG_DIR+"/paper_plots_viscatBC_flat_prior_out.ipynb"
-# output, dependencies, comment, command
+# Plot
+output = "$ROOT"+"/catall_nobright/paper_plots_sim_small.ipynb"
 write_makefile_rule(output,
                     [ previous_output,
-                      "../gain_sampler/paper_plots.ipynb",
-                     "run_plot_"+str(file_counter) ],
-                    "Sampler",
-                    "sh run_plot_"+str(file_counter))
+                     "../gain_sampler/paper_plots_simple.ipynb",
+                      ],
+                    "Plot",
+                    "sh run_plot_small")
 
+all += "catall_nobright/paper_plots_sim_small.ipynb "
+phony.append( ("catall_nobright/paper_plots_sim_small.ipynb" , output ) )
+"""
 
-all += CATALOG_DIR+"/paper_plots_viscatBC_flat_prior_out.ipynb"+" "
-phony.append( ( CATALOG_DIR+"/paper_plots_viscatBC_flat_prior_out.ipynb", output ) )
-file_counter += 1
+# Dump the whole list for make all
 
 with open("Makefile", "a") as f:
     f.write(".PHONY: "+" ".join([ p[0] for p in phony])+"\n\n")
@@ -335,4 +345,4 @@ with open("Makefile", "a") as f:
     f.write("\techo Finished all\n") 
 
     
-    
+
