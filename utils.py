@@ -164,6 +164,7 @@ def build_hex_array(hex_spec=(3,4), ants_per_row=None, d=14.6):
             
     return ants
 
+
 def build_array_from_uvd(uvd=None, pick_data_ants=False):
     """
     Build an antenna position dict from a UVData object.
@@ -790,3 +791,16 @@ def remove_file_ext(dfile):
         return (dfile[:-(len(fext)+1)])
     else:
         return dfile
+
+def build_small_array():
+    l = 50.0
+    ants = {}
+    ants[0] = ( 0, 0, 0 )
+    ants[1] = (l, 0, 0)
+    ants[2] = (l/2, l*np.sqrt(3)/2, 0)
+
+    return ants
+
+if __name__ == "__main__":
+    a = build__small_array()
+    
