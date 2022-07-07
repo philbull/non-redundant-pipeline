@@ -169,15 +169,19 @@ if __name__ == '__main__':
     cfg_xtalk = cfg['sim_xtalk']
     
     # Construct array layout to simulate
-    ants = utils.build_hex_array(hex_spec=cfg_spec['hex_spec'], 
+    if cfg_spec['hex_spec'] == "small":
+        ants = utils.build_small_array()
+    elif cfg_spec['hex_spec'] == "random":
+        ants = utils.build_random_array()
+    else:
+        ants = utils.build_hex_array(hex_spec=cfg_spec['hex_spec'], 
                                      ants_per_row=cfg_spec['hex_ants_per_row'], 
                                      d=cfg_spec['hex_ant_sep'])
-
     # Construct array layout from UVData object
     #uvd = UVData()
     #uvd.read_uvh5('data_0_0_filtered.uvh5')
     #ants = utils.build_array_from_uvd(uvd, pick_data_ants=True)
-
+    
     Nant = len(ants)
     ant_index = list(ants.keys())
 
@@ -491,6 +495,13 @@ if __name__ == '__main__':
             if not cfg_out['clobber'] and os.path.exists(cfg_out['noise_post_noise']):
                 raise RuntimeError(os.path.exists(cfg_out['noise_post_noise'])+" exists and clobber=False")
             np.savez_compressed(cfg_out['noise_post_noise'], data_array=uvd_noise.data_array)
+
+            noise_post_noise_uvh5 = cfg_out['noise_post_noise'].replace("npz", "uvh5")
+            if not cfg_out['clobber'] and os.path.exists(noise_post_noise_uvh5):
+                raise RuntimeError(noise_post_noise_uvh5+" exists and clobber=False")
+            uvd.write_uvh5(noise_post_noise_uvh5, 
+                           clobber=cfg_out['clobber'])
+
 
     
     # Add fluctuating gain model if requested

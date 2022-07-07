@@ -8,7 +8,7 @@ gen_to_analyse = {
     "generate_sims_4b_0.02.yaml":  "analyse_sims_eor13.yaml",
     "generate_sims_4c_a.yaml":  "analyse_sims_eor14.yaml",
     "generate_sims_4c_b.yaml":  "analyse_sims_eor15.yaml",
-    #"generate_sims_main001.yaml":  "analyse_sims_eor3.yaml",
+    #"generate_sims_main001.yaml":  "analyse_sims_eor3.yaml",        # Get beam interpolation erro
     #"generate_sims_main002.yaml":  "analyse_sims_eor4.yaml",
     "generate_sims_outlier2_1.1.yaml":  "analyse_sims_eor8.yaml",
     "generate_sims_outlier7_1.1.yaml":  "analyse_sims_eor9.yaml",
@@ -24,7 +24,7 @@ gen_to_analyse = {
 
 LOCAL = ""
 
-def create_sim_script(runtime, mem, script_to_run, gen_or_analyse, in_gen_yaml, in_analyse_yaml, script_name):
+def create_sim_script(runtime, mem, script_to_run, gen_or_analyse, in_gen_yaml, in_analyse_yaml, script_name, output):
 
     script ="""
 #!/bin/bash
@@ -38,22 +38,28 @@ def create_sim_script(runtime, mem, script_to_run, gen_or_analyse, in_gen_yaml, 
 
 # {script}, {gen_or_analyse}, {in_gen_yaml}, {in_analyse_yaml}
 
+sleep `od -An -N1 -i /dev/random`
+
 module load hdf5
 
 source ~/.bashrc
 conda activate sampler
 date
 python setup_yaml_files.py {gen_or_analyse} {in_gen_yaml} {in_analyse_yaml} {gen_or_analyse}$$.yaml
-python {script} {gen_or_analyse}$$.yaml
+if ! python {script} {gen_or_analyse}$$.yaml
+then
+  echo {output} failed
+  rm {output} 2> /dev/null
+fi
 rm {gen_or_analyse}$$.yaml
 date
 """.format(runtime=runtime, mem=mem, script=script_to_run, gen_or_analyse=gen_or_analyse, in_gen_yaml=in_gen_yaml, 
-		in_analyse_yaml=in_analyse_yaml)
+		in_analyse_yaml=in_analyse_yaml, output=output)
 
     with open(script_name, "w") as f:
         f.write(script)
 
-def create_sampler_script(runtime, mem, file_root, in_sampler_yaml, global_yaml, script_name):
+def create_sampler_script(runtime, mem, file_root, in_sampler_yaml, global_yaml, script_name, output):
 
     script ="""
 #!/bin/bash
@@ -67,6 +73,8 @@ def create_sampler_script(runtime, mem, file_root, in_sampler_yaml, global_yaml,
 
 # {file_root}, {in_sampler_yaml}, {global_yaml}
 
+sleep `od -An -N1 -i /dev/random`
+
 module load hdf5
 
 source ~/.bashrc
@@ -74,16 +82,20 @@ conda activate sampler
 cd ../gain_sampler
 date
 python setup_yaml_file.py {file_root} {global_yaml} {in_sampler_yaml} samp$$.yaml
-python run_sampler.py samp$$.yaml
+if ! python run_sampler.py samp$$.yaml
+then
+  echo {output} failed
+  rm {output} 2> /dev/null
+fi
 rm samp$$.yaml
 date
 """.format(runtime=runtime, mem=mem, file_root=file_root, in_sampler_yaml=in_sampler_yaml,
-          global_yaml=global_yaml)
+          global_yaml=global_yaml, output=output)
 
     with open(script_name, "w") as f:
         f.write(script)
 
-def create_plots_script(runtime, mem, file_root, case, script_name):
+def create_plots_script(runtime, mem, file_root, case, script_name, output):
     
     script ="""
 #!/bin/bash
@@ -97,6 +109,8 @@ def create_plots_script(runtime, mem, file_root, case, script_name):
 
 # {file_root}, {case}
 
+sleep `od -An -N1 -i /dev/random`
+
 module load hdf5
 
 source ~/.bashrc
@@ -104,11 +118,17 @@ conda activate sampler
 cd ../gain_sampler
 date
 sed s/SAMPLER_DIR/'{file_root}'/ paper_plots.ipynb > paper_plots_{case}.ipynb
-papermill paper_plots_{case}.ipynb {out_dir}/paper_plots_{case}_out.ipynb
+if papermill paper_plots_{case}.ipynb {out_dir}/paper_plots_{case}_out.ipynb
+then
+  cp {output} .
+else
+  echo {output} failed
+  rm {output} `basename {output}` 2> /dev/null
+fi  
+
 rm paper_plots_{case}.ipynb 
-cp {out_dir}/paper_plots_{case}_out.ipynb .
 date
-""".format(runtime=runtime, mem=mem, file_root=file_root.replace("/", "\\/"), out_dir=os.path.dirname(file_root), case=case, script_name=script_name)
+""".format(runtime=runtime, mem=mem, file_root=file_root.replace("/", "\\/"), out_dir=os.path.dirname(file_root), case=case, script_name=script_name, output=output)
 
     with open(script_name, "w") as f:
         f.write(script)
@@ -155,6 +175,7 @@ for gen in gen_to_analyse:
     
     ## Generate
 
+    output = "${ROOT}/"+CATALOG_DIR+"/viscatBC"+cs(case)+"_g.uvh5"
     # runtime, mem, script_to_run, gen_or_analyse, in_gen_yaml, in_analyse_yaml, script_name
     create_sim_script(global_setup["sim_time_gen"], 
                       int(np.ceil(float(global_setup["sim_mem"])/8)), 
@@ -162,10 +183,9 @@ for gen in gen_to_analyse:
                       "generate", 
                       "yaml_files/"+gen, 
                       "", 
-                      "run_generate_"+str(file_counter))
+                      "run_generate_"+str(file_counter), output.replace("${ROOT}", global_setup["output_root"]))
     
     
-    output = "${ROOT}/"+CATALOG_DIR+"/viscatBC"+cs(case)+"_g.uvh5"
     # output, dependencies, comment, command
     write_makefile_rule(output,
                         [ "yaml_files/"+gen, 
@@ -179,15 +199,15 @@ for gen in gen_to_analyse:
     
     ## Analyse
     
+    output = "${ROOT}/"+CATALOG_DIR+"/viscatBC"+cs(case)+"_g_cal.uvh5"
     create_sim_script(global_setup["sim_time_analyse"], 
                       int(np.ceil(float(global_setup["sim_mem"])/8)), 
                       "analyse_sims.py", 
                       "analyse", 
                       "yaml_files/"+gen, 
                       "yaml_files/"+gen_to_analyse[gen], 
-                      "run_analyse_"+str(file_counter))
+                      "run_analyse_"+str(file_counter), output.replace("${ROOT}", global_setup["output_root"]))
     
-    output = "${ROOT}/"+CATALOG_DIR+"/viscatBC"+cs(case)+"_g_cal.uvh5"
     # output, dependencies, comment, command
     write_makefile_rule(output,
                         [ previous_output,
@@ -202,15 +222,15 @@ for gen in gen_to_analyse:
     ## Sample
     
     
+    output = "${ROOT}/"+CATALOG_DIR+"/sampled_viscatBC"+cs(case)+"/sampler.hkl"
     # runtime, mem, file_root, in_sampler_yaml, global_yaml, script_name
     create_sampler_script(global_setup["sampler_time"], 
                           int(np.ceil(float(global_setup["sampler_mem"])/8)), 
                           global_setup["output_root"]+"/"+CATALOG_DIR+"/viscatBC"+cs(case), 
                           "yaml_files/sampler.yaml", 
                           "../non-redundant-pipeline/globals.yaml",
-                          "run_sample_"+str(file_counter))
+                          "run_sample_"+str(file_counter), output.replace("${ROOT}", global_setup["output_root"]))
     
-    output = "${ROOT}/"+CATALOG_DIR+"/sampled_viscatBC"+cs(case)+"/sampler.hkl"
     # output, dependencies, comment, command
     write_makefile_rule(output,
                         [ previous_output,
@@ -224,14 +244,14 @@ for gen in gen_to_analyse:
     
     ## Plot
     
+    output = "${ROOT}/"+CATALOG_DIR+"/paper_plots_"+cl(case)+"_out.ipynb"
     # runtime, mem, file_root, case, script_name
     create_plots_script(global_setup["sampler_time"], 
                         int(np.ceil(float(global_setup["sampler_mem"])/8)), 
                         global_setup["output_root"]+"/"+CATALOG_DIR+"/sampled_viscatBC"+cs(case), 
                         cl(case), 
-                        "run_plot_"+str(file_counter))
+                        "run_plot_"+str(file_counter), output.replace("${ROOT}", global_setup["output_root"]))
     
-    output = "${ROOT}/"+CATALOG_DIR+"/paper_plots_"+cl(case)+"_out.ipynb"
     # output, dependencies, comment, command
     write_makefile_rule(output,
                         [ previous_output,
@@ -253,14 +273,14 @@ def create_varied_sampler_run(case):
 
     # runtime, mem, file_root, in_sampler_yaml, global_yaml, script_name
     CATALOG_DIR = "catall_nobright"
+    output = "${ROOT}/"+CATALOG_DIR+"/sampled_viscatBC_"+case+"/sampler.hkl"
     create_sampler_script(global_setup["sampler_time"], 
                           int(np.ceil(float(global_setup["sampler_mem"])/8)), 
                           global_setup["output_root"]+"/"+CATALOG_DIR+"/viscatBC", 
                           "yaml_files/sampler_"+case+".yaml", 
                           "../non-redundant-pipeline/globals.yaml",
-                          "run_sample_"+str(file_counter))
+                          "run_sample_"+str(file_counter), output.replace("${ROOT}", global_setup["output_root"]))
 
-    output = "${ROOT}/"+CATALOG_DIR+"/sampled_viscatBC_"+case+"/sampler.hkl"
     # output, dependencies, comment, command
     write_makefile_rule(output,
                         [ global_setup["output_root"]+"/"+CATALOG_DIR+"/viscatBC_g_cal.uvh5",
@@ -272,13 +292,13 @@ def create_varied_sampler_run(case):
     previous_output = output
 
      # runtime, mem, file_root, case, script_name
+    output = "${ROOT}/"+CATALOG_DIR+"/paper_plots_vanilla_"+case+"_out.ipynb"
     create_plots_script(global_setup["sampler_time"], 
                         int(np.ceil(float(global_setup["sampler_mem"])/8)), 
                         global_setup["output_root"]+"/"+CATALOG_DIR+"/sampled_viscatBC_"+case, 
                         "vanilla_"+case, 
-                        "run_plot_"+str(file_counter))
+                        "run_plot_"+str(file_counter), output.replace("${ROOT}", global_setup["output_root"]))
 
-    output = "${ROOT}/"+CATALOG_DIR+"/paper_plots_vanilla_"+case+"_out.ipynb"
     # output, dependencies, comment, command
     write_makefile_rule(output,
                         [ previous_output,

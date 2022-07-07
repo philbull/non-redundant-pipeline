@@ -105,6 +105,7 @@ if __name__ == '__main__':
     # (1) Perform redundant calibration
     tstart = time.time()
     cal = hc.redcal.redcal_run(input_data, **cfg['redcal'])
+    
     print("Red calibration run took %2.1f sec" % (time.time() - tstart))    
 
     #replace outlier

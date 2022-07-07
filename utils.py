@@ -62,6 +62,7 @@ def add_noise_from_autos(uvd_in, input_noise=None, nsamp=1, seed=None, inplace=F
     # Get channel width and integration time
     dnu = uvd.channel_width # in Hz
     dt = uvd.integration_time[0] # in sec
+    
 
     #read noise .uvh5 file if exists
     if input_noise is not None:
@@ -163,6 +164,20 @@ def build_hex_array(hex_spec=(3,4), ants_per_row=None, d=14.6):
             ants[k] = (x[i], y, 0.)
             
     return ants
+
+def build_random_array(num=10, length=100, sep=2):
+    ants = build_hex_array()
+
+    rad = np.deg2rad(45)
+    rotation_matrix = np.array([[np.cos(rad), -np.sin(rad) ], [ np.sin(rad), np.cos(rad) ]])
+
+    for i in range(0, num):
+        x_y = np.array([ants[i][0], ants[i][1]])
+        rotated_x_y = np.dot(rotation_matrix, x_y)
+        ants.update([(i+num, (rotated_x_y[0], rotated_x_y[1], 0.))])
+
+    return ants
+
 
 
 def build_array_from_uvd(uvd=None, pick_data_ants=False):
@@ -380,6 +395,12 @@ def generate_gains(nants, nfreqs, nmodes=8, seed=None):
     gains : dict
         Dictionary of (1D) gain arrays for each antenna.
     """
+
+    def random_rotate(c):
+        angles = np.random.random(size=c.shape)*2*np.pi
+        return c*np.exp(angles*1j)
+
+    
     # Set random seed and create dimensionless frequency array
     np.random.seed(seed)
     nu = np.linspace(0., 1., nfreqs)
@@ -396,8 +417,9 @@ def generate_gains(nants, nfreqs, nmodes=8, seed=None):
         p = (1. + 1.j)/np.sqrt(2.) + 0.1 * p # FIXME
         
         # Store in dict
-        gains[ant] = p
+        gains[ant] = np.full(p.shape, 1+1j)
     
+   
     return gains
 
 
@@ -802,5 +824,6 @@ def build_small_array():
     return ants
 
 if __name__ == "__main__":
-    a = build__small_array()
+    a = build_random_array()
+    print(a)
     
